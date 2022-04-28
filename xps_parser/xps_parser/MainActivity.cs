@@ -59,401 +59,13 @@ namespace xps_parser
         public float ScR { get; set; }
         public string ColorContext { get; }
     }
-    public class XPSVisual
-    {
-        public XPSBrush Fill { get; set; } //System.Windows.Media.Brush, class SolidColorBrush : System.Windows.Media.Brush
-        public XPSGeometry Clip { get; set; }
-        public double Opacity { get; set; }
-        public XPSBrush OpacityMask { get; set; }
-        public string RenderTransform { get; set; }
-        public string Name { get; set; }
-        public string xml_lang { get; set; }
-    }
 
-    //XPS classes dependents are SKRect, SKCanvas, SKPath, SKPaint, SKTextBlob, XmlReader, Java.Util.Zip.ZipFile
-    public class XPSGlyphs : XPSVisual
-    {
-        public int BidiLevel { get; set; }
-        public string CaretStops { get; set; }
-        public string DeviceFontName { get; set; }
-        public float FontRenderingEmSize { get; set; }
-        public Uri FontUri { get; set; }
-        public string Indices { get; set; }
-        public bool IsSideways { get; set; }
-        public float OriginX { get; set; }
-        public float OriginY { get; set; }
-        public string UnicodeString { get; set; }
-
-        private SKTextBlob FrameworkTextData;
-        private List<float> GlyphLeftList = new List<float>();
-        private List<float> GlyphAdvancesRatio = new List<float>();
-        private SKRect[] GlyphBounds;
-
-        public XPSGlyphs(XmlReader Source, Java.Util.Zip.ZipFile XpsZipFile)
-        {
-            Parse(Source, XpsZipFile);
-        }
-
-        private void Parse(XmlReader Source, Java.Util.Zip.ZipFile XpsZipFile)
-        {
-            BidiLevel = int.Parse(Source.GetAttribute("BidiLevel"));
-            FontRenderingEmSize = float.Parse(Source.GetAttribute("FontRenderingEmSize"));
-            FontUri = new Uri(Source.GetAttribute("FontUri"));
-            Indices = Source.GetAttribute("Indices");
-            OriginX = float.Parse(Source.GetAttribute("OriginX"));
-            OriginY = float.Parse(Source.GetAttribute("OriginY"));
-            UnicodeString = Source.GetAttribute("UnicodeString");
-            Fill = new XPSSolidColorBrush(new SKColor(uint.Parse(Source.GetAttribute("Fill").Substring(1), System.Globalization.NumberStyles.HexNumber)));
-            OnParsed(XpsZipFile);
-
-            //read the object Elements
-            while (Source.Read())
-            {
-                if (Source.NodeType == XmlNodeType.Element || Source.NodeType == XmlNodeType.Text || Source.NodeType == XmlNodeType.EndElement)
-                {
-                    if (Source.Name == "Glyphs" && Source.NodeType == XmlNodeType.EndElement)
-                    {
-                        Console.WriteLine("</" + Source.Name + ">");
-                        Source.Read();
-                        break;
-                    }
-                }
-            }
-
-        }
-
-        private void OnParsed(Java.Util.Zip.ZipFile zip_file)
-        {
-            Stream FontStream = DeobfuscateXpsFont_from_stream(FontUri.AbsolutePath, zip_file.GetInputStream(zip_file.GetEntry(FontUri.AbsolutePath.Substring(1))));
-            SKTypeface TypeFace = SKTypeface.FromStream(FontStream);
-            FontStream.Close();
-
-            SKPaint DrawingAttribute = Fill.ToPaint();
-            DrawingAttribute.Typeface = TypeFace;
-            DrawingAttribute.TextSize = FontRenderingEmSize;
-
-            string strRegex_compare = @"[-+]?\,[0-9]*\.?[0-9]*";
-            Regex myRegex_compare = new Regex(strRegex_compare, RegexOptions.None);
-            foreach (Match myMatch in myRegex_compare.Matches(Indices))
-            {
-                if (myMatch.Success)
-                {
-                    if (myMatch.ToString().Length != 0)
-                    {
-                        GlyphAdvancesRatio.Add(Convert.ToSingle(myMatch.ToString().Remove(0, 1)));
-                    }
-                }
-            }
-
-            float[] GlyphAdvances = DrawingAttribute.GetGlyphWidths(UnicodeString, out SKRect[] bounds);
-            GlyphBounds = bounds;
-            float GlyphLeft = OriginX;
-            for (int n = 0; n < GlyphAdvances.Length; n++)
-            {
-                GlyphLeftList.Add(GlyphLeft);
-                if (n < GlyphAdvancesRatio.Count)
-                {
-                    GlyphLeft += FontRenderingEmSize * GlyphAdvancesRatio[n] / 100;
-                }
-                else
-                {
-                    GlyphLeft += GlyphAdvances[n];
-                }
-            }
-            SKTextBlobBuilder BlobBuilder = new SKTextBlobBuilder();
-            BlobBuilder.AddHorizontalRun(DrawingAttribute.GetGlyphs(UnicodeString), DrawingAttribute.ToFont(), GlyphLeftList.ToArray(), OriginY);
-            FrameworkTextData = BlobBuilder.Build();
-        }
-
-        public void Draw(SKCanvas canvas)
-        {
-            canvas.DrawText(FrameworkTextData, 0, 0, Fill.ToPaint());
-        }
-
-        public int HitTest(float x, float y)
-        {
-            for (int i = 0; i < GlyphBounds.Length; i++)
-            {
-                if (GlyphBounds[i].Contains(x, y))
-                {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        private static Stream DeobfuscateXpsFont_from_stream(string input_font_path, Stream image_header_stream)
-        {
-            string XpsFontFilename = input_font_path.Split("/")[2];
-            int length = 512 * 1024;
-            byte[] dta = new byte[length];
-            image_header_stream.Read(dta, 0, dta.Length);
-            {
-                string guid = new Guid(XpsFontFilename.Split('.')[0]).ToString("N");
-                byte[] guidBytes = new byte[16];
-                for (int i = 0; i < guidBytes.Length; i++)
-                {
-                    guidBytes[i] = Convert.ToByte(guid.Substring(i * 2, 2), 16);
-                }
-
-                for (int i = 0; i < 32; i++)
-                {
-                    int gi = guidBytes.Length - (i % guidBytes.Length) - 1;
-                    dta[i] ^= guidBytes[gi];
-                }
-            }
-            Stream stream = new MemoryStream(dta);
-            return stream;
-        }
-    }
-
-
-    public class XPSPath : XPSVisual
-    {
-        public string Data { get; set; } //System.Windows.Media.Geometry
-        //public string RenderTransform { get; set; } //System.Windows.Media.Geometry
-        SKPath path;
-
-        List<XPSPathFigure> xps_path_figure_list = new List<XPSPathFigure>();
-        XPSPathFigure xps_path_figure = new XPSPathFigure();
-        SKMatrix pre_matrix;
-        string Transformr;
-        SKMatrix transform_matrix_geometry;
-
-        string Data_signal;
-        string RenderTransform_signal;
-        string Stroke_signal;
-        string PathFigure_signal;
-
-        public XPSPath(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            if( source.GetAttribute("Data") != null )
-            {
-                this.Data_signal = "Data";
-                Data = source.GetAttribute("Data");
-                path = SKPath.ParseSvgPathData(Data);
-            }
-
-            if (source.GetAttribute("RenderTransform") != null )
-            {
-                this.RenderTransform_signal = "RenderTransform";
-                RenderTransform = source.GetAttribute("RenderTransform");
-            }
-
-            if (source.GetAttribute("Stroke") != null)
-            {
-                Stroke_signal = "Stroke";
-                XPSSolidColorBrush brush = new XPSSolidColorBrush( new SKColor(uint.Parse(source.GetAttribute("Stroke").Substring(1), System.Globalization.NumberStyles.HexNumber)) );
-                brush.InternalPaint.Style = SKPaintStyle.Stroke;
-                brush.InternalPaint.StrokeWidth = float.Parse( source.GetAttribute("StrokeThickness") );
-                this.Fill = brush;
-
-                source.ReadToDescendant("PathGeometry");
-
-                if (source.GetAttribute("Transform") != null)
-                {
-                    this.Transformr = source.GetAttribute("Transform");
-                    this.transform_matrix_geometry = new SKMatrix(float.Parse(Transformr.Split(",")[0]), float.Parse(Transformr.Split(",")[2]), float.Parse(Transformr.Split(",")[4]), float.Parse(Transformr.Split(",")[1]), float.Parse(Transformr.Split(",")[3]), float.Parse(Transformr.Split(",")[5]), 0, 0, 1);
-                }
-
-                while (source.Read())
-                {
-                    if (source.Name == "PathFigure" && source.GetAttribute("StartPoint") != null)
-                    {
-                        PathFigure_signal = "PathFigure";
-                        XPSPathFigure xps_path_figure = new XPSPathFigure();
-                        xps_path_figure.parse_PathFigure(source);
-                        xps_path_figure_list.Add(xps_path_figure);
-
-                    }
-
-                    if (source.Name == "PathGeometry" && source.NodeType == XmlNodeType.EndElement)
-                    {
-                        source.Read();
-                        break;
-                    }
-                }
-                
-            }
-            else
-            {
-
-                if (source.ReadToDescendant("Path.Fill"))
-                {
-                    source.Read();
-                    source.Read();
-
-                    if (source.NodeType == XmlNodeType.Element || source.NodeType == XmlNodeType.Text || source.NodeType == XmlNodeType.EndElement)
-                    {
-                        if (source.Name == "SolidColorBrush")
-                        {
-                            this.Fill = new XPSSolidColorBrush(source, zip_file);
-                        }
-
-                        if (source.Name == "ImageBrush")
-                        {
-                            this.Fill = new XPSImageBrush(source, zip_file);
-                        }
-
-                        if (source.Name == "RadialGradientBrush")
-                        {
-                            this.Fill = new XPSRadialGradientBrush(source, zip_file);
-                        }
-
-                        if (source.Name == "LinearGradientBrush")
-                        {
-                            this.Fill = new XPSLinearGradientBrush(source, zip_file);
-                        }
-
-                        if (source.Name == "VisualBrush")
-                        {
-                            this.Fill = new XPSVisualBrush(source, zip_file);
-                        }
-                    }
-                }
-                else
-                {
-                    this.Fill = new XPSSolidColorBrush(new SKColor(0, 255, 0));
-                }
-
-                while (source.Read())
-                {
-
-                    if (source.Name == "PathGeometry" && source.NodeType == XmlNodeType.Element)
-                    {
-                        if (source.GetAttribute("Transform") != null)
-                        {
-                            this.Transformr = source.GetAttribute("Transform");
-                            this.transform_matrix_geometry = new SKMatrix(float.Parse(Transformr.Split(",")[0]), float.Parse(Transformr.Split(",")[2]), float.Parse(Transformr.Split(",")[4]), float.Parse(Transformr.Split(",")[1]), float.Parse(Transformr.Split(",")[3]), float.Parse(Transformr.Split(",")[5]), 0, 0, 1);
-                        }
-                    }
-
-                    if (source.Name == "PathFigure" && source.GetAttribute("StartPoint") != null)
-                    {
-                        PathFigure_signal = "PathFigure";
-                        xps_path_figure.parse_PathFigure(source);
-                        xps_path_figure.BuildInternalData();
-
-                    }
-
-                    if (source.Name == "Path.Data" && source.NodeType == XmlNodeType.EndElement)
-                    {
-                        break;
-                    }
-                    else if (source.Name == "Path" && source.NodeType == XmlNodeType.EndElement)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        public void Draw(SKCanvas canvas)
-        {
-            if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSImageBrush")
-            {
-                canvas.DrawPath(path, this.Fill.ToPaint());
-            }
-
-            if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSRadialGradientBrush")
-            {
-                if (RenderTransform_signal == "RenderTransform")
-                {
-                    this.transform_matrix_geometry = new SKMatrix(float.Parse(RenderTransform.Split(",")[0]), float.Parse(RenderTransform.Split(",")[2]), float.Parse(RenderTransform.Split(",")[4]), float.Parse(RenderTransform.Split(",")[1]), float.Parse(RenderTransform.Split(",")[3]), float.Parse(RenderTransform.Split(",")[5]), 0, 0, 1);
-                    this.pre_matrix = canvas.TotalMatrix;
-                    SKMatrix post_matrix = SKMatrix.CreateIdentity();
-                    SKMatrix.Concat(ref post_matrix, canvas.TotalMatrix, this.transform_matrix_geometry);
-
-                    canvas.SetMatrix(post_matrix);
-
-
-                    if (Data_signal == "Data")
-                    {
-                        canvas.DrawPath(path, this.Fill.ToPaint());
-                    }
-
-                    if (PathFigure_signal == "PathFigure")
-                    {
-                        canvas.DrawPath(xps_path_figure.Data, this.Fill.ToPaint());
-                    }
-
-                    canvas.SetMatrix(pre_matrix);
-                }
-                else
-                {
-                    if (Data_signal == "Data")
-                    {
-                        canvas.DrawPath(path, this.Fill.ToPaint());
-                    }
-
-                    if (PathFigure_signal == "PathFigure")
-                    {
-                        canvas.DrawPath(xps_path_figure.Data, this.Fill.ToPaint());
-                    }
-
-                }
-
-            }
-
-
-            if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSLinearGradientBrush")
-            {
-                if (RenderTransform_signal == "RenderTransform")
-                {
-                    this.transform_matrix_geometry = new SKMatrix(float.Parse(RenderTransform.Split(",")[0]), float.Parse(RenderTransform.Split(",")[2]), float.Parse(RenderTransform.Split(",")[4]), float.Parse(RenderTransform.Split(",")[1]), float.Parse(RenderTransform.Split(",")[3]), float.Parse(RenderTransform.Split(",")[5]), 0, 0, 1);
-                    this.pre_matrix = canvas.TotalMatrix;
-                    SKMatrix post_matrix = SKMatrix.CreateIdentity();
-                    SKMatrix.Concat(ref post_matrix, canvas.TotalMatrix, this.transform_matrix_geometry);
-
-                    canvas.SetMatrix(post_matrix);
-                    canvas.DrawPath(path, this.Fill.ToPaint());
-                    canvas.SetMatrix(pre_matrix);
-                }
-                else
-                {
-                    canvas.DrawPath(path, this.Fill.ToPaint());
-                }
-            }
-
-            if (Stroke_signal == "Stroke")
-            {
-                this.pre_matrix = canvas.TotalMatrix;
-                SKMatrix post_matrix = SKMatrix.CreateIdentity();
-                SKMatrix.Concat(ref post_matrix, canvas.TotalMatrix, this.transform_matrix_geometry);
-                canvas.SetMatrix(post_matrix);
-
-                for (int i = 0; i < xps_path_figure_list.Count; i++)
-                {
-                    xps_path_figure_list[i].BuildInternalData();
-                    canvas.DrawPath(xps_path_figure_list[i].Data, this.Fill.ToPaint());
-                }
-
-                canvas.SetMatrix(pre_matrix);
-            }
-
-            if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSVisualBrush")
-            {
-                canvas.DrawPath(path, this.Fill.ToPaint());
-            }
-        }
-    }
-
-    public class XPSCanvas : XPSVisual
-    {
-        public List<XPSVisual> xps_visual_children = new List<XPSVisual>(0);
-    }
-
-    public class XPSFixedPage : XPSVisual
-    {
-        public XPSBrush Background { get; set; }
-        public SKRect BleedBox { get; set; }
-        public SKRect ContentBox { get; set; }
-        public object PrintTicket { get; set; }
-    }
     public abstract class XPSAnimatable
     {
         public bool HasAnimatedProperties { get; }
     }
+
+
 
     public class XPSBrush : XPSAnimatable
     {
@@ -469,6 +81,158 @@ namespace xps_parser
         }
     }
 
+    
+   public class XPSVisual
+   {
+       public XPSBrush Fill { get; set; } //System.Windows.Media.Brush, class SolidColorBrush : System.Windows.Media.Brush
+       public XPSGeometry Clip { get; set; }
+       public double Opacity { get; set; }
+       public XPSBrush OpacityMask { get; set; }
+       public string RenderTransform { get; set; }
+       public string Name { get; set; }
+       public string xml_lang { get; set; }
+   }
+
+
+
+   //XPS classes dependents are SKRect, SKCanvas, SKPath, SKPaint, SKTextBlob, XmlReader, Java.Util.Zip.ZipFile
+   public class XPSGlyphs : XPSVisual
+   {
+       public int BidiLevel { get; set; }
+       public string CaretStops { get; set; }
+       public string DeviceFontName { get; set; }
+       public float FontRenderingEmSize { get; set; }
+       public Uri FontUri { get; set; }
+       public string Indices { get; set; }
+       public bool IsSideways { get; set; }
+       public float OriginX { get; set; }
+       public float OriginY { get; set; }
+       public string UnicodeString { get; set; }
+
+       private SKTextBlob FrameworkTextData;
+       private List<float> GlyphLeftList = new List<float>();
+       private List<float> GlyphAdvancesRatio = new List<float>();
+       private SKRect[] GlyphBounds;
+
+       public XPSGlyphs(XmlReader Source, Java.Util.Zip.ZipFile XpsZipFile)
+       {
+           Parse(Source, XpsZipFile);
+       }
+
+       private void Parse(XmlReader Source, Java.Util.Zip.ZipFile XpsZipFile)
+       {
+           BidiLevel = int.Parse(Source.GetAttribute("BidiLevel"));
+           FontRenderingEmSize = float.Parse(Source.GetAttribute("FontRenderingEmSize"));
+           FontUri = new Uri(Source.GetAttribute("FontUri"));
+           Indices = Source.GetAttribute("Indices");
+           OriginX = float.Parse(Source.GetAttribute("OriginX"));
+           OriginY = float.Parse(Source.GetAttribute("OriginY"));
+           UnicodeString = Source.GetAttribute("UnicodeString");
+           Fill = new XPSSolidColorBrush(new SKColor(uint.Parse(Source.GetAttribute("Fill").Substring(1), System.Globalization.NumberStyles.HexNumber)));
+           OnParsed(XpsZipFile);
+
+           //read the object Elements
+           while (Source.Read())
+           {
+               if (Source.NodeType == XmlNodeType.Element || Source.NodeType == XmlNodeType.Text || Source.NodeType == XmlNodeType.EndElement)
+               {
+                   if (Source.Name == "Glyphs" && Source.NodeType == XmlNodeType.EndElement)
+                   {
+                       Console.WriteLine("</" + Source.Name + ">");
+                       Source.Read();
+                       break;
+                   }
+               }
+           }
+
+       }
+
+       private void OnParsed(Java.Util.Zip.ZipFile zip_file)
+       {
+           Stream FontStream = DeobfuscateXpsFont_from_stream(FontUri.AbsolutePath, zip_file.GetInputStream(zip_file.GetEntry(FontUri.AbsolutePath.Substring(1))));
+           SKTypeface TypeFace = SKTypeface.FromStream(FontStream);
+           FontStream.Close();
+
+           SKPaint DrawingAttribute = Fill.ToPaint();
+           DrawingAttribute.Typeface = TypeFace;
+           DrawingAttribute.TextSize = FontRenderingEmSize;
+
+           string strRegex_compare = @"[-+]?\,[0-9]*\.?[0-9]*";
+           Regex myRegex_compare = new Regex(strRegex_compare, RegexOptions.None);
+           foreach (Match myMatch in myRegex_compare.Matches(Indices))
+           {
+               if (myMatch.Success)
+               {
+                   if (myMatch.ToString().Length != 0)
+                   {
+                       GlyphAdvancesRatio.Add(Convert.ToSingle(myMatch.ToString().Remove(0, 1)));
+                   }
+               }
+           }
+
+           float[] GlyphAdvances = DrawingAttribute.GetGlyphWidths(UnicodeString, out SKRect[] bounds);
+           GlyphBounds = bounds;
+           float GlyphLeft = OriginX;
+           for (int n = 0; n < GlyphAdvances.Length; n++)
+           {
+               GlyphLeftList.Add(GlyphLeft);
+               if (n < GlyphAdvancesRatio.Count)
+               {
+                   GlyphLeft += FontRenderingEmSize * GlyphAdvancesRatio[n] / 100;
+               }
+               else
+               {
+                   GlyphLeft += GlyphAdvances[n];
+               }
+           }
+           SKTextBlobBuilder BlobBuilder = new SKTextBlobBuilder();
+           BlobBuilder.AddHorizontalRun(DrawingAttribute.GetGlyphs(UnicodeString), DrawingAttribute.ToFont(), GlyphLeftList.ToArray(), OriginY);
+           FrameworkTextData = BlobBuilder.Build();
+       }
+
+       public void Draw(SKCanvas canvas)
+       {
+           canvas.DrawText(FrameworkTextData, 0, 0, Fill.ToPaint());
+       }
+
+       public int HitTest(float x, float y)
+       {
+           for (int i = 0; i < GlyphBounds.Length; i++)
+           {
+               if (GlyphBounds[i].Contains(x, y))
+               {
+                   return i;
+               }
+           }
+           return -1;
+       }
+
+       private static Stream DeobfuscateXpsFont_from_stream(string input_font_path, Stream image_header_stream)
+       {
+           string XpsFontFilename = input_font_path.Split("/")[2];
+           int length = 512 * 1024;
+           byte[] dta = new byte[length];
+           image_header_stream.Read(dta, 0, dta.Length);
+           {
+               string guid = new Guid(XpsFontFilename.Split('.')[0]).ToString("N");
+               byte[] guidBytes = new byte[16];
+               for (int i = 0; i < guidBytes.Length; i++)
+               {
+                   guidBytes[i] = Convert.ToByte(guid.Substring(i * 2, 2), 16);
+               }
+
+               for (int i = 0; i < 32; i++)
+               {
+                   int gi = guidBytes.Length - (i % guidBytes.Length) - 1;
+                   dta[i] ^= guidBytes[gi];
+               }
+           }
+           Stream stream = new MemoryStream(dta);
+           return stream;
+       }
+   }
+
+
     public class XPSSolidColorBrush : XPSBrush
     {
         public XPSSolidColorBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
@@ -481,6 +245,7 @@ namespace xps_parser
             InternalPaint.Color = FillColor;
         }
     }
+
 
 
     public abstract class XPSTileBrush : XPSBrush
@@ -595,446 +360,694 @@ namespace xps_parser
 
 
     /*
-    public class XPSImageBrush : XPSTileBrush
-    {
-        public string ImageSource { get; set; }
-
-        string text_matrix;
-
-        public SKCanvas canvas;
-        public XmlReader source;
-        public Java.Util.Zip.ZipFile zip_file;
-        public SKPaint ImagePaint;
-        public SKShaderTileMode tile_mode_x;
-        public SKShaderTileMode tile_mode_y;
-
-
-
-        public XPSImageBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            Parse(source, zip_file);
-        }
-
-        private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-
-            this.ImageSource = source.GetAttribute("ImageSource");
-
-            string[] viewboxContent = source.GetAttribute("Viewbox").Split(",");
-            float viewboxLeft = float.Parse(viewboxContent[0]);
-            float viewboxTop = float.Parse(viewboxContent[1]);
-            float viewboxWidth = float.Parse(viewboxContent[2]);
-            float viewboxHeight = float.Parse(viewboxContent[3]);
-
-            this.Viewbox = new SKRect((int)viewboxLeft, (int)viewboxTop, (int)(viewboxLeft+viewboxWidth), (int)(viewboxTop + viewboxHeight));
-
-            string[] viewportContent = source.GetAttribute("Viewport").Split(",");
-            float viewportLeft = float.Parse(viewportContent[0]);
-            float viewportTop = float.Parse(viewportContent[1]);
-            float viewportWidth = float.Parse(viewportContent[2]);
-            float viewportHeight = float.Parse(viewportContent[3]);
-
-            this.Viewport = new SKRect(viewportLeft, viewportTop,(viewportLeft+viewportWidth),(viewportTop+viewportHeight));
-
-            string tile_mode_string = source.GetAttribute("TileMode");
-
-            source.ReadToDescendant("MatrixTransform");
-            this.text_matrix = source.GetAttribute("Matrix");
-
-            
-
-
-            if (tile_mode_string == "None")
-            {
-                this.tile_mode_x = SKShaderTileMode.Decal;
-                this.tile_mode_y = SKShaderTileMode.Decal;
-            }
-            else if ( tile_mode_string == "FlipX")
-            {
-                this.tile_mode_x = SKShaderTileMode.Mirror;
-                this.tile_mode_y = SKShaderTileMode.Decal;
-            }
-            else if (tile_mode_string == "FlipY")
-            {
-                this.tile_mode_x = SKShaderTileMode.Decal;
-                this.tile_mode_y = SKShaderTileMode.Mirror;
-            }
-            else if (tile_mode_string == "FlipXY")
-            {
-                this.tile_mode_x = SKShaderTileMode.Mirror;
-                this.tile_mode_y = SKShaderTileMode.Mirror;
-            }
-            else if (tile_mode_string == "Tile")
-            {
-                this.tile_mode_x = SKShaderTileMode.Repeat;
-                this.tile_mode_y = SKShaderTileMode.Repeat;
-            }
-
-            OnParsed(zip_file);
-        }
-
-        private void OnParsed(Java.Util.Zip.ZipFile zip_file)
-        {
-
-            this.InternalPaint.Style = SKPaintStyle.Fill;
-
-            int Xdensity = 96;
-            int Ydensity = 96;
-            if (this.ImageSource.Split("/")[3].Split(".")[1] == "jpg" || this.ImageSource.Split("/")[3].Split(".")[1] == "jpeg")
-            {
-                AssetManager assets = Android.App.Application.Context.Assets;
-                Stream image_header_stream = zip_file.GetInputStream(zip_file.GetEntry(this.ImageSource.Substring(1)));
-                BinaryReader reader = new BinaryReader(image_header_stream);
-                _ = reader.ReadBytes(13);
-                if (reader.ReadByte() == 1)
-                {
-                    Xdensity = (reader.ReadByte() << 8 | reader.ReadByte()) & 0xFFFF;
-                    Ydensity = (reader.ReadByte() << 8 | reader.ReadByte()) & 0xFFFF;
-                }
-                reader.Dispose();
-            }
-
-
-
-            float viewboxLeft_xps =this.Viewbox.Left;
-            float viewboxTop_xps = this.Viewbox.Top;
-            float viewboxWidth_xps = this.Viewbox.Width;
-            float viewboxHeight_xps = this.Viewbox.Height;
-
-            float viewportLeft_xps = this.Viewport.Left;
-            float viewportTop_xps = this.Viewport.Top;
-            float viewportWidth_xps = this.Viewport.Width;
-            float viewportHeight_xps = this.Viewport.Height;
-
-
-            float scaleX = Xdensity / 96F;
-            float scaleY = Ydensity / 96F;
-
-            SKRect ViewBox = new SKRect(viewboxLeft_xps * scaleX, viewboxTop_xps * scaleY, (viewboxLeft_xps + viewboxWidth_xps) * scaleX, (viewboxTop_xps + viewboxHeight_xps) * scaleY);
-            SKRect ViewPort = new SKRect(viewportLeft_xps, viewportTop_xps, viewportLeft_xps + viewportWidth_xps, viewportTop_xps + viewportHeight_xps);
-
-
-            Stream xps_image_stream = zip_file.GetInputStream(zip_file.GetEntry(this.ImageSource.Substring(1)));
-            var bmp = SKBitmap.Decode(xps_image_stream);
-
-            //SKRect cut_view_box = new SKRect(Viewbox.Left, Viewbox.Top, Viewbox.Width / 3, Viewbox.Height / 3);
-            SKRectI bitmapBox = SKRectI.Round(ViewBox);
-            var bmp0 = new SKBitmap(bitmapBox.Width, bitmapBox.Height);
-
-            bmp.ExtractSubset(bmp0, bitmapBox);
-
-            string[] matrix_number = text_matrix.Split(",");
-            SKMatrix LocalMatrix = new SKMatrix(float.Parse(matrix_number[0]), float.Parse(matrix_number[2]), float.Parse(matrix_number[4]), float.Parse(matrix_number[1]), float.Parse(matrix_number[3]), float.Parse(matrix_number[5]), 0, 0, 1);
-
-            SKMatrix PreScale = SKMatrix.CreateScale(viewportWidth_xps / viewboxWidth_xps, viewportHeight_xps / viewboxHeight_xps); 
-            LocalMatrix = LocalMatrix.PreConcat(PreScale);
-
-            SKPictureRecorder record = new SKPictureRecorder();
-            SKCanvas recording_anvas = record.BeginRecording(ViewBox);
-            recording_anvas.DrawBitmap(bmp0, 0, 0);
-            SKPicture picture = record.EndRecording();
-
-            this.InternalPaint.Shader = SKShader.CreatePicture(picture, this.tile_mode_x, this.tile_mode_x, LocalMatrix, ViewBox);
-        }
-
-        public SKPaint return_paint()
-        {
-            return this.InternalPaint;
-        }
-    }
-    //*/
-
-
-    public class XPSVisualBrush : XPSTileBrush
-    {
-        public bool AutoLayoutContent { get; set; }
-        public XPSVisual Visual { get; set; }
-
-        public SKShaderTileMode tile_mode_x;
-        public SKShaderTileMode tile_mode_y;
-        public string Data;
-        public XPSBrush linear_gradient_brush;
-        public SKPath path;
-        public string RenderTransform;
-        public XPSPath xps_path;
-        public XPSGlyphs xps_glyphs;
-        public string glyphs_signal;
-
-        public XPSVisualBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            Parse(source, zip_file);
-        }
-
-        private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            string[] viewboxContent = source.GetAttribute("Viewbox").Split(",");
-            float viewboxLeft = float.Parse(viewboxContent[0]);
-            float viewboxTop = float.Parse(viewboxContent[1]);
-            float viewboxWidth = float.Parse(viewboxContent[2]);
-            float viewboxHeight = float.Parse(viewboxContent[3]);
-
-            //SKRect is the left top right bottom
-            this.Viewbox = new SKRect((int)viewboxLeft, (int)viewboxTop, (int)(viewboxLeft + viewboxWidth), (int)(viewboxTop + viewboxHeight));
-
-            string[] viewportContent = source.GetAttribute("Viewport").Split(",");
-            float viewportLeft = float.Parse(viewportContent[0]);
-            float viewportTop = float.Parse(viewportContent[1]);
-            float viewportWidth = float.Parse(viewportContent[2]);
-            float viewportHeight = float.Parse(viewportContent[3]);
-
-            this.Viewport = new SKRect(viewportLeft, viewportTop, (viewportLeft + viewportWidth), (viewportTop + viewportHeight));
-
-            string tile_mode_string = source.GetAttribute("TileMode");
-
-            if (tile_mode_string == "None")
-            {
-                this.tile_mode_x = SKShaderTileMode.Decal;
-                this.tile_mode_y = SKShaderTileMode.Decal;
-            }
-            else if (tile_mode_string == "FlipX")
-            {
-                this.tile_mode_x = SKShaderTileMode.Mirror;
-                this.tile_mode_y = SKShaderTileMode.Decal;
-            }
-            else if (tile_mode_string == "FlipY")
-            {
-                this.tile_mode_x = SKShaderTileMode.Decal;
-                this.tile_mode_y = SKShaderTileMode.Mirror;
-            }
-            else if (tile_mode_string == "FlipXY")
-            {
-                this.tile_mode_x = SKShaderTileMode.Mirror;
-                this.tile_mode_y = SKShaderTileMode.Mirror;
-            }
-            else if (tile_mode_string == "Tile")
-            {
-                this.tile_mode_x = SKShaderTileMode.Repeat;
-                this.tile_mode_y = SKShaderTileMode.Repeat;
-            }
-
-            source.ReadToDescendant("Path");
-            this.Data = source.GetAttribute("Data");
-            this.path = SKPath.ParseSvgPathData(this.Data);
-
-            if (source.Name == "Path" && source.GetAttribute("Data") != null)
-            {
-                this.xps_path = new XPSPath(source, zip_file);
-                //xps_path.Draw(canvas);
-            }
-
-            if (source.Name == "Canvas")
-            {
-                if (source.ReadToDescendant("Glyphs"))
-                {
-                    glyphs_signal = "Glyphs";
-                    this.xps_glyphs = new XPSGlyphs(source, zip_file);
-                }
-            }
-
-            //this.RenderTransform = source.GetAttribute("RenderTransform");
-
-            //source.ReadToDescendant("LinearGradientBrush");
-            //this.linear_gradient_brush = new XPSLinearGradientBrush(source,zip_file);
-
-            OnParsed(zip_file);
-        }
-
-        private void OnParsed(Java.Util.Zip.ZipFile zip_file)
-        {
-            this.InternalPaint.Style = SKPaintStyle.Fill;
-
-            float viewboxLeft_xps = this.Viewbox.Left;
-            float viewboxTop_xps = this.Viewbox.Top;
-            float viewboxWidth_xps = this.Viewbox.Width;
-            float viewboxHeight_xps = this.Viewbox.Height;
-
-            float viewportLeft_xps = this.Viewport.Left;
-            float viewportTop_xps = this.Viewport.Top;
-            float viewportWidth_xps = this.Viewport.Width;
-            float viewportHeight_xps = this.Viewport.Height;
-
-
-
-            SKRect ViewBox = new SKRect(viewboxLeft_xps , viewboxTop_xps , (viewboxLeft_xps + viewboxWidth_xps) , (viewboxTop_xps + viewboxHeight_xps) );
-            SKMatrix pre_scale_matrix = SKMatrix.CreateScale(viewportWidth_xps / viewboxWidth_xps, viewportHeight_xps / viewboxHeight_xps);
-
-
-            SKPictureRecorder record = new SKPictureRecorder();
-            SKCanvas recording_anvas = record.BeginRecording(ViewBox);
-
-            //SKMatrix transform_matrix_geometry = new SKMatrix(float.Parse(RenderTransform.Split(",")[0]), float.Parse(RenderTransform.Split(",")[2]), float.Parse(RenderTransform.Split(",")[4]), float.Parse(RenderTransform.Split(",")[1]), float.Parse(RenderTransform.Split(",")[3]), float.Parse(RenderTransform.Split(",")[5]), 0, 0, 1);
-            //SKMatrix pre_matrix = recording_anvas.TotalMatrix;
-            //SKMatrix post_matrix = SKMatrix.CreateIdentity();
-            //SKMatrix.Concat(ref post_matrix, recording_anvas.TotalMatrix, transform_matrix_geometry);
-
-            //recording_anvas.SetMatrix(post_matrix);
-            //recording_anvas.DrawPath(this.path, this.linear_gradient_brush.ToPaint());
-            if (glyphs_signal == "Glyphs")
-            {
-                xps_glyphs.Draw(recording_anvas);
-            }
-            else
-            {
-                xps_path.Draw(recording_anvas);
-            }
-            //recording_anvas.SetMatrix(pre_matrix);
-            SKPicture picture = record.EndRecording();
-
-            this.InternalPaint.Shader = SKShader.CreatePicture(picture, this.tile_mode_x, this.tile_mode_x, pre_scale_matrix, ViewBox);
-        }
-    }
-
-    public class XPSGradientBrush : XPSBrush
-    {
-        public string ColorInterpolationMode { get; set; }
-        public string GradientStops { get; set; }
-        public string MappingMode { get; set; }
-        public string SpreadMethod { get; set; }
-
-    }
-
-    public class XPSLinearGradientBrush : XPSGradientBrush
-    {
-        public SKPoint StartPoint { get; set; }
-        public SKPoint EndPoint { get; set; }
-
-        public SKShaderTileMode TileMode;
-
-        public XPSLinearGradientBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            Parse(source, zip_file);
-        }
-
-        private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            this.MappingMode = source.GetAttribute("MappingMode");
-            this.StartPoint = new SKPoint(float.Parse(source.GetAttribute("StartPoint").Split(",")[0]), float.Parse(source.GetAttribute("StartPoint").Split(",")[1]));
-            this.EndPoint = new SKPoint(float.Parse(source.GetAttribute("EndPoint").Split(",")[0]), float.Parse(source.GetAttribute("EndPoint").Split(",")[1]));
-            this.SpreadMethod = source.GetAttribute("SpreadMethod");
-            source.ReadToDescendant("LinearGradientBrush.GradientStops");
-
-            List<SKColor> color_list = new List<SKColor>();
-            List<float> offset_list = new List<float>();
-            
-
-            if (this.SpreadMethod == "Pad")
-            {
-                this.TileMode = SKShaderTileMode.Clamp;
-            }
-            else if (this.SpreadMethod == "Repeat")
-            {
-                this.TileMode = SKShaderTileMode.Repeat;
-            }
-            else if (this.SpreadMethod == "Reflect")
-            {
-                this.TileMode = SKShaderTileMode.Mirror;
-            }
-
-            while (source.Read())
-            {
-                if (source.NodeType == XmlNodeType.Element || source.NodeType == XmlNodeType.Text || source.NodeType == XmlNodeType.EndElement)
-                {
-                    if (source.Name == "GradientStop")
-                    {
-
-                        if (source.GetAttribute("Color").Length == 7)
-                        {
-                            color_list.Add(new SKColor(uint.Parse("FF" + source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
-                        }
-                        else if (source.GetAttribute("Color").Length == 9)
-                        {
-                            color_list.Add(new SKColor(uint.Parse(source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
-                        }
-
-                        offset_list.Add(float.Parse(source.GetAttribute("Offset")));
-                    }
-
-                    if (source.Name == "LinearGradientBrush.GradientStops" && source.NodeType == XmlNodeType.EndElement)
-                    {
-                        break;
-                    }
-                }
-            }
-            this.InternalPaint.Shader = SKShader.CreateLinearGradient( this.StartPoint, this.EndPoint, color_list.ToArray(), offset_list.ToArray(), this.TileMode );
-        }
-    }
-
-    public class XPSRadialGradientBrush : XPSGradientBrush
-    {
-        public SKPoint Center { get; set; }
-        public SKPoint GradientOrigin { get; set; }
-        public float RadiusX { get; set; }
-        public float RadiusY { get; set; }
-
-        public SKShaderTileMode TileMode;
-
-        public XPSRadialGradientBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            Parse(source, zip_file);
-        }
-
-        private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
-        {
-            this.MappingMode = source.GetAttribute("MappingMode");
-            this.Center =  new SKPoint(float.Parse(source.GetAttribute("Center").Split(",")[0]), float.Parse(source.GetAttribute("Center").Split(",")[1]));
-            this.GradientOrigin = new SKPoint(float.Parse(source.GetAttribute("GradientOrigin").Split(",")[0]), float.Parse(source.GetAttribute("GradientOrigin").Split(",")[1])); 
-            this.RadiusX = float.Parse(source.GetAttribute("RadiusX"));
-            this.RadiusY = float.Parse(source.GetAttribute("RadiusY"));
-            this.SpreadMethod = source.GetAttribute("SpreadMethod");
-
-            
-            if (this.SpreadMethod == "Pad")
-            {
-                this.TileMode = SKShaderTileMode.Clamp;
-            }
-            else if (this.SpreadMethod == "Repeat")
-            {
-                this.TileMode = SKShaderTileMode.Repeat;
-            }
-            else if (this.SpreadMethod == "Reflect")
-            {
-                this.TileMode = SKShaderTileMode.Mirror;
-            }
-
-
-            source.ReadToDescendant("RadialGradientBrush.GradientStops");
-            List<SKColor> color_list = new List<SKColor>();
-            List<float> offset_list = new List<float>();
-
-            while (source.Read())
-            {
-                if (source.NodeType == XmlNodeType.Element || source.NodeType == XmlNodeType.Text || source.NodeType == XmlNodeType.EndElement)
-                {
-                    if (source.Name == "GradientStop")
-                    {
-
-                        if (source.GetAttribute("Color").Length == 7)
-                        {
-                            color_list.Add(new SKColor(uint.Parse("FF" + source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
-                        }
-                        else if (source.GetAttribute("Color").Length == 9)
-                        {
-                            color_list.Add(new SKColor(uint.Parse(source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
-                        }
-                        
-                        offset_list.Add(float.Parse(source.GetAttribute("Offset")));
-                    }
-
-                    if (source.Name == "RadialGradientBrush.GradientStops" && source.NodeType == XmlNodeType.EndElement)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            SKMatrix gradient_matrix = new SKMatrix();
-            float ScaleY = this.RadiusY / this.RadiusX;
-            gradient_matrix = new SKMatrix(1, 0, 0, 0, ScaleY, -(ScaleY - 1) * Center.Y, 0, 0, 1);
-
-            this.InternalPaint.Shader = SKShader.CreateTwoPointConicalGradient( this.GradientOrigin, 0, this.Center, this.RadiusX, color_list.ToArray(), offset_list.ToArray(), this.TileMode, gradient_matrix);
-        }
-    }
-
+   public class XPSPath : XPSVisual
+   {
+       public string Data { get; set; } //System.Windows.Media.Geometry
+       //public string RenderTransform { get; set; } //System.Windows.Media.Geometry
+       SKPath path;
+
+       List<XPSPathFigure> xps_path_figure_list = new List<XPSPathFigure>();
+       XPSPathFigure xps_path_figure = new XPSPathFigure();
+       SKMatrix pre_matrix;
+       string Transformr;
+       SKMatrix transform_matrix_geometry;
+
+       string Data_signal;
+       string RenderTransform_signal;
+       string Stroke_signal;
+       string PathFigure_signal;
+
+       public XPSPath(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           if( source.GetAttribute("Data") != null )
+           {
+               this.Data_signal = "Data";
+               Data = source.GetAttribute("Data");
+               path = SKPath.ParseSvgPathData(Data);
+           }
+
+           if (source.GetAttribute("RenderTransform") != null )
+           {
+               this.RenderTransform_signal = "RenderTransform";
+               RenderTransform = source.GetAttribute("RenderTransform");
+           }
+
+           if (source.GetAttribute("Stroke") != null)
+           {
+               Stroke_signal = "Stroke";
+               XPSSolidColorBrush brush = new XPSSolidColorBrush( new SKColor(uint.Parse(source.GetAttribute("Stroke").Substring(1), System.Globalization.NumberStyles.HexNumber)) );
+               brush.InternalPaint.Style = SKPaintStyle.Stroke;
+               brush.InternalPaint.StrokeWidth = float.Parse( source.GetAttribute("StrokeThickness") );
+               this.Fill = brush;
+
+               source.ReadToDescendant("PathGeometry");
+
+               if (source.GetAttribute("Transform") != null)
+               {
+                   this.Transformr = source.GetAttribute("Transform");
+                   this.transform_matrix_geometry = new SKMatrix(float.Parse(Transformr.Split(",")[0]), float.Parse(Transformr.Split(",")[2]), float.Parse(Transformr.Split(",")[4]), float.Parse(Transformr.Split(",")[1]), float.Parse(Transformr.Split(",")[3]), float.Parse(Transformr.Split(",")[5]), 0, 0, 1);
+               }
+
+               while (source.Read())
+               {
+                   if (source.Name == "PathFigure" && source.GetAttribute("StartPoint") != null)
+                   {
+                       PathFigure_signal = "PathFigure";
+                       XPSPathFigure xps_path_figure = new XPSPathFigure();
+                       xps_path_figure.parse_PathFigure(source);
+                       xps_path_figure_list.Add(xps_path_figure);
+
+                   }
+
+                   if (source.Name == "PathGeometry" && source.NodeType == XmlNodeType.EndElement)
+                   {
+                       source.Read();
+                       break;
+                   }
+               }
+
+           }
+           else
+           {
+
+               if (source.ReadToDescendant("Path.Fill"))
+               {
+                   source.Read();
+                   source.Read();
+
+                   if (source.NodeType == XmlNodeType.Element || source.NodeType == XmlNodeType.Text || source.NodeType == XmlNodeType.EndElement)
+                   {
+                       if (source.Name == "SolidColorBrush")
+                       {
+                           this.Fill = new XPSSolidColorBrush(source, zip_file);
+                       }
+
+                       if (source.Name == "ImageBrush")
+                       {
+                           this.Fill = new XPSImageBrush(source, zip_file);
+                       }
+
+                       if (source.Name == "RadialGradientBrush")
+                       {
+                           this.Fill = new XPSRadialGradientBrush(source, zip_file);
+                       }
+
+                       if (source.Name == "LinearGradientBrush")
+                       {
+                           this.Fill = new XPSLinearGradientBrush(source, zip_file);
+                       }
+
+                       if (source.Name == "VisualBrush")
+                       {
+                           this.Fill = new XPSVisualBrush(source, zip_file);
+                       }
+                   }
+               }
+               else
+               {
+                   this.Fill = new XPSSolidColorBrush(new SKColor(0, 255, 0));
+               }
+
+               while (source.Read())
+               {
+
+                   if (source.Name == "PathGeometry" && source.NodeType == XmlNodeType.Element)
+                   {
+                       if (source.GetAttribute("Transform") != null)
+                       {
+                           this.Transformr = source.GetAttribute("Transform");
+                           this.transform_matrix_geometry = new SKMatrix(float.Parse(Transformr.Split(",")[0]), float.Parse(Transformr.Split(",")[2]), float.Parse(Transformr.Split(",")[4]), float.Parse(Transformr.Split(",")[1]), float.Parse(Transformr.Split(",")[3]), float.Parse(Transformr.Split(",")[5]), 0, 0, 1);
+                       }
+                   }
+
+                   if (source.Name == "PathFigure" && source.GetAttribute("StartPoint") != null)
+                   {
+                       PathFigure_signal = "PathFigure";
+                       xps_path_figure.parse_PathFigure(source);
+                       xps_path_figure.BuildInternalData();
+
+                   }
+
+                   if (source.Name == "Path.Data" && source.NodeType == XmlNodeType.EndElement)
+                   {
+                       break;
+                   }
+                   else if (source.Name == "Path" && source.NodeType == XmlNodeType.EndElement)
+                   {
+                       break;
+                   }
+               }
+           }
+       }
+
+       public void Draw(SKCanvas canvas)
+       {
+           if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSImageBrush")
+           {
+               canvas.DrawPath(path, this.Fill.ToPaint());
+           }
+
+           if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSRadialGradientBrush")
+           {
+               if (RenderTransform_signal == "RenderTransform")
+               {
+                   this.transform_matrix_geometry = new SKMatrix(float.Parse(RenderTransform.Split(",")[0]), float.Parse(RenderTransform.Split(",")[2]), float.Parse(RenderTransform.Split(",")[4]), float.Parse(RenderTransform.Split(",")[1]), float.Parse(RenderTransform.Split(",")[3]), float.Parse(RenderTransform.Split(",")[5]), 0, 0, 1);
+                   this.pre_matrix = canvas.TotalMatrix;
+                   SKMatrix post_matrix = SKMatrix.CreateIdentity();
+                   SKMatrix.Concat(ref post_matrix, canvas.TotalMatrix, this.transform_matrix_geometry);
+
+                   canvas.SetMatrix(post_matrix);
+
+
+                   if (Data_signal == "Data")
+                   {
+                       canvas.DrawPath(path, this.Fill.ToPaint());
+                   }
+
+                   if (PathFigure_signal == "PathFigure")
+                   {
+                       canvas.DrawPath(xps_path_figure.Data, this.Fill.ToPaint());
+                   }
+
+                   canvas.SetMatrix(pre_matrix);
+               }
+               else
+               {
+                   if (Data_signal == "Data")
+                   {
+                       canvas.DrawPath(path, this.Fill.ToPaint());
+                   }
+
+                   if (PathFigure_signal == "PathFigure")
+                   {
+                       canvas.DrawPath(xps_path_figure.Data, this.Fill.ToPaint());
+                   }
+
+               }
+
+           }
+
+
+           if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSLinearGradientBrush")
+           {
+               if (RenderTransform_signal == "RenderTransform")
+               {
+                   this.transform_matrix_geometry = new SKMatrix(float.Parse(RenderTransform.Split(",")[0]), float.Parse(RenderTransform.Split(",")[2]), float.Parse(RenderTransform.Split(",")[4]), float.Parse(RenderTransform.Split(",")[1]), float.Parse(RenderTransform.Split(",")[3]), float.Parse(RenderTransform.Split(",")[5]), 0, 0, 1);
+                   this.pre_matrix = canvas.TotalMatrix;
+                   SKMatrix post_matrix = SKMatrix.CreateIdentity();
+                   SKMatrix.Concat(ref post_matrix, canvas.TotalMatrix, this.transform_matrix_geometry);
+
+                   canvas.SetMatrix(post_matrix);
+                   canvas.DrawPath(path, this.Fill.ToPaint());
+                   canvas.SetMatrix(pre_matrix);
+               }
+               else
+               {
+                   canvas.DrawPath(path, this.Fill.ToPaint());
+               }
+           }
+
+           if (Stroke_signal == "Stroke")
+           {
+               this.pre_matrix = canvas.TotalMatrix;
+               SKMatrix post_matrix = SKMatrix.CreateIdentity();
+               SKMatrix.Concat(ref post_matrix, canvas.TotalMatrix, this.transform_matrix_geometry);
+               canvas.SetMatrix(post_matrix);
+
+               for (int i = 0; i < xps_path_figure_list.Count; i++)
+               {
+                   xps_path_figure_list[i].BuildInternalData();
+                   canvas.DrawPath(xps_path_figure_list[i].Data, this.Fill.ToPaint());
+               }
+
+               canvas.SetMatrix(pre_matrix);
+           }
+
+           if (this.Fill != null && this.Fill.ToString() == "xps_parser.XPSVisualBrush")
+           {
+               canvas.DrawPath(path, this.Fill.ToPaint());
+           }
+       }
+   }
+
+   public class XPSCanvas : XPSVisual
+   {
+       public List<XPSVisual> xps_visual_children = new List<XPSVisual>(0);
+   }
+
+   public class XPSFixedPage : XPSVisual
+   {
+       public XPSBrush Background { get; set; }
+       public SKRect BleedBox { get; set; }
+       public SKRect ContentBox { get; set; }
+       public object PrintTicket { get; set; }
+   }
+
+
+
+
+
+   public class XPSImageBrush : XPSTileBrush
+   {
+       public string ImageSource { get; set; }
+
+       string text_matrix;
+
+       public SKCanvas canvas;
+       public XmlReader source;
+       public Java.Util.Zip.ZipFile zip_file;
+       public SKPaint ImagePaint;
+       public SKShaderTileMode tile_mode_x;
+       public SKShaderTileMode tile_mode_y;
+
+
+
+       public XPSImageBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           Parse(source, zip_file);
+       }
+
+       private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+
+           this.ImageSource = source.GetAttribute("ImageSource");
+
+           string[] viewboxContent = source.GetAttribute("Viewbox").Split(",");
+           float viewboxLeft = float.Parse(viewboxContent[0]);
+           float viewboxTop = float.Parse(viewboxContent[1]);
+           float viewboxWidth = float.Parse(viewboxContent[2]);
+           float viewboxHeight = float.Parse(viewboxContent[3]);
+
+           this.Viewbox = new SKRect((int)viewboxLeft, (int)viewboxTop, (int)(viewboxLeft+viewboxWidth), (int)(viewboxTop + viewboxHeight));
+
+           string[] viewportContent = source.GetAttribute("Viewport").Split(",");
+           float viewportLeft = float.Parse(viewportContent[0]);
+           float viewportTop = float.Parse(viewportContent[1]);
+           float viewportWidth = float.Parse(viewportContent[2]);
+           float viewportHeight = float.Parse(viewportContent[3]);
+
+           this.Viewport = new SKRect(viewportLeft, viewportTop,(viewportLeft+viewportWidth),(viewportTop+viewportHeight));
+
+           string tile_mode_string = source.GetAttribute("TileMode");
+
+           source.ReadToDescendant("MatrixTransform");
+           this.text_matrix = source.GetAttribute("Matrix");
+
+
+
+
+           if (tile_mode_string == "None")
+           {
+               this.tile_mode_x = SKShaderTileMode.Decal;
+               this.tile_mode_y = SKShaderTileMode.Decal;
+           }
+           else if ( tile_mode_string == "FlipX")
+           {
+               this.tile_mode_x = SKShaderTileMode.Mirror;
+               this.tile_mode_y = SKShaderTileMode.Decal;
+           }
+           else if (tile_mode_string == "FlipY")
+           {
+               this.tile_mode_x = SKShaderTileMode.Decal;
+               this.tile_mode_y = SKShaderTileMode.Mirror;
+           }
+           else if (tile_mode_string == "FlipXY")
+           {
+               this.tile_mode_x = SKShaderTileMode.Mirror;
+               this.tile_mode_y = SKShaderTileMode.Mirror;
+           }
+           else if (tile_mode_string == "Tile")
+           {
+               this.tile_mode_x = SKShaderTileMode.Repeat;
+               this.tile_mode_y = SKShaderTileMode.Repeat;
+           }
+
+           OnParsed(zip_file);
+       }
+
+       private void OnParsed(Java.Util.Zip.ZipFile zip_file)
+       {
+
+           this.InternalPaint.Style = SKPaintStyle.Fill;
+
+           int Xdensity = 96;
+           int Ydensity = 96;
+           if (this.ImageSource.Split("/")[3].Split(".")[1] == "jpg" || this.ImageSource.Split("/")[3].Split(".")[1] == "jpeg")
+           {
+               AssetManager assets = Android.App.Application.Context.Assets;
+               Stream image_header_stream = zip_file.GetInputStream(zip_file.GetEntry(this.ImageSource.Substring(1)));
+               BinaryReader reader = new BinaryReader(image_header_stream);
+               _ = reader.ReadBytes(13);
+               if (reader.ReadByte() == 1)
+               {
+                   Xdensity = (reader.ReadByte() << 8 | reader.ReadByte()) & 0xFFFF;
+                   Ydensity = (reader.ReadByte() << 8 | reader.ReadByte()) & 0xFFFF;
+               }
+               reader.Dispose();
+           }
+
+
+
+           float viewboxLeft_xps =this.Viewbox.Left;
+           float viewboxTop_xps = this.Viewbox.Top;
+           float viewboxWidth_xps = this.Viewbox.Width;
+           float viewboxHeight_xps = this.Viewbox.Height;
+
+           float viewportLeft_xps = this.Viewport.Left;
+           float viewportTop_xps = this.Viewport.Top;
+           float viewportWidth_xps = this.Viewport.Width;
+           float viewportHeight_xps = this.Viewport.Height;
+
+
+           float scaleX = Xdensity / 96F;
+           float scaleY = Ydensity / 96F;
+
+           SKRect ViewBox = new SKRect(viewboxLeft_xps * scaleX, viewboxTop_xps * scaleY, (viewboxLeft_xps + viewboxWidth_xps) * scaleX, (viewboxTop_xps + viewboxHeight_xps) * scaleY);
+           SKRect ViewPort = new SKRect(viewportLeft_xps, viewportTop_xps, viewportLeft_xps + viewportWidth_xps, viewportTop_xps + viewportHeight_xps);
+
+
+           Stream xps_image_stream = zip_file.GetInputStream(zip_file.GetEntry(this.ImageSource.Substring(1)));
+           var bmp = SKBitmap.Decode(xps_image_stream);
+
+           //SKRect cut_view_box = new SKRect(Viewbox.Left, Viewbox.Top, Viewbox.Width / 3, Viewbox.Height / 3);
+           SKRectI bitmapBox = SKRectI.Round(ViewBox);
+           var bmp0 = new SKBitmap(bitmapBox.Width, bitmapBox.Height);
+
+           bmp.ExtractSubset(bmp0, bitmapBox);
+
+           string[] matrix_number = text_matrix.Split(",");
+           SKMatrix LocalMatrix = new SKMatrix(float.Parse(matrix_number[0]), float.Parse(matrix_number[2]), float.Parse(matrix_number[4]), float.Parse(matrix_number[1]), float.Parse(matrix_number[3]), float.Parse(matrix_number[5]), 0, 0, 1);
+
+           SKMatrix PreScale = SKMatrix.CreateScale(viewportWidth_xps / viewboxWidth_xps, viewportHeight_xps / viewboxHeight_xps); 
+           LocalMatrix = LocalMatrix.PreConcat(PreScale);
+
+           SKPictureRecorder record = new SKPictureRecorder();
+           SKCanvas recording_anvas = record.BeginRecording(ViewBox);
+           recording_anvas.DrawBitmap(bmp0, 0, 0);
+           SKPicture picture = record.EndRecording();
+
+           this.InternalPaint.Shader = SKShader.CreatePicture(picture, this.tile_mode_x, this.tile_mode_x, LocalMatrix, ViewBox);
+       }
+
+       public SKPaint return_paint()
+       {
+           return this.InternalPaint;
+       }
+   }
+
+
+
+   public class XPSVisualBrush : XPSTileBrush
+   {
+       public bool AutoLayoutContent { get; set; }
+       public XPSVisual Visual { get; set; }
+
+       public SKShaderTileMode tile_mode_x;
+       public SKShaderTileMode tile_mode_y;
+       public string Data;
+       public XPSBrush linear_gradient_brush;
+       public SKPath path;
+       public string RenderTransform;
+       public XPSPath xps_path;
+       public XPSGlyphs xps_glyphs;
+       public string glyphs_signal;
+
+       public XPSVisualBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           Parse(source, zip_file);
+       }
+
+       private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           string[] viewboxContent = source.GetAttribute("Viewbox").Split(",");
+           float viewboxLeft = float.Parse(viewboxContent[0]);
+           float viewboxTop = float.Parse(viewboxContent[1]);
+           float viewboxWidth = float.Parse(viewboxContent[2]);
+           float viewboxHeight = float.Parse(viewboxContent[3]);
+
+           //SKRect is the left top right bottom
+           this.Viewbox = new SKRect((int)viewboxLeft, (int)viewboxTop, (int)(viewboxLeft + viewboxWidth), (int)(viewboxTop + viewboxHeight));
+
+           string[] viewportContent = source.GetAttribute("Viewport").Split(",");
+           float viewportLeft = float.Parse(viewportContent[0]);
+           float viewportTop = float.Parse(viewportContent[1]);
+           float viewportWidth = float.Parse(viewportContent[2]);
+           float viewportHeight = float.Parse(viewportContent[3]);
+
+           this.Viewport = new SKRect(viewportLeft, viewportTop, (viewportLeft + viewportWidth), (viewportTop + viewportHeight));
+
+           string tile_mode_string = source.GetAttribute("TileMode");
+
+           if (tile_mode_string == "None")
+           {
+               this.tile_mode_x = SKShaderTileMode.Decal;
+               this.tile_mode_y = SKShaderTileMode.Decal;
+           }
+           else if (tile_mode_string == "FlipX")
+           {
+               this.tile_mode_x = SKShaderTileMode.Mirror;
+               this.tile_mode_y = SKShaderTileMode.Decal;
+           }
+           else if (tile_mode_string == "FlipY")
+           {
+               this.tile_mode_x = SKShaderTileMode.Decal;
+               this.tile_mode_y = SKShaderTileMode.Mirror;
+           }
+           else if (tile_mode_string == "FlipXY")
+           {
+               this.tile_mode_x = SKShaderTileMode.Mirror;
+               this.tile_mode_y = SKShaderTileMode.Mirror;
+           }
+           else if (tile_mode_string == "Tile")
+           {
+               this.tile_mode_x = SKShaderTileMode.Repeat;
+               this.tile_mode_y = SKShaderTileMode.Repeat;
+           }
+
+           source.ReadToDescendant("Path");
+           this.Data = source.GetAttribute("Data");
+           this.path = SKPath.ParseSvgPathData(this.Data);
+
+           if (source.Name == "Path" && source.GetAttribute("Data") != null)
+           {
+               this.xps_path = new XPSPath(source, zip_file);
+               //xps_path.Draw(canvas);
+           }
+
+           if (source.Name == "Canvas")
+           {
+               if (source.ReadToDescendant("Glyphs"))
+               {
+                   glyphs_signal = "Glyphs";
+                   this.xps_glyphs = new XPSGlyphs(source, zip_file);
+               }
+           }
+
+           //this.RenderTransform = source.GetAttribute("RenderTransform");
+
+           //source.ReadToDescendant("LinearGradientBrush");
+           //this.linear_gradient_brush = new XPSLinearGradientBrush(source,zip_file);
+
+           OnParsed(zip_file);
+       }
+
+       private void OnParsed(Java.Util.Zip.ZipFile zip_file)
+       {
+           this.InternalPaint.Style = SKPaintStyle.Fill;
+
+           float viewboxLeft_xps = this.Viewbox.Left;
+           float viewboxTop_xps = this.Viewbox.Top;
+           float viewboxWidth_xps = this.Viewbox.Width;
+           float viewboxHeight_xps = this.Viewbox.Height;
+
+           float viewportLeft_xps = this.Viewport.Left;
+           float viewportTop_xps = this.Viewport.Top;
+           float viewportWidth_xps = this.Viewport.Width;
+           float viewportHeight_xps = this.Viewport.Height;
+
+
+
+           SKRect ViewBox = new SKRect(viewboxLeft_xps , viewboxTop_xps , (viewboxLeft_xps + viewboxWidth_xps) , (viewboxTop_xps + viewboxHeight_xps) );
+           SKMatrix pre_scale_matrix = SKMatrix.CreateScale(viewportWidth_xps / viewboxWidth_xps, viewportHeight_xps / viewboxHeight_xps);
+
+
+           SKPictureRecorder record = new SKPictureRecorder();
+           SKCanvas recording_anvas = record.BeginRecording(ViewBox);
+
+           //SKMatrix transform_matrix_geometry = new SKMatrix(float.Parse(RenderTransform.Split(",")[0]), float.Parse(RenderTransform.Split(",")[2]), float.Parse(RenderTransform.Split(",")[4]), float.Parse(RenderTransform.Split(",")[1]), float.Parse(RenderTransform.Split(",")[3]), float.Parse(RenderTransform.Split(",")[5]), 0, 0, 1);
+           //SKMatrix pre_matrix = recording_anvas.TotalMatrix;
+           //SKMatrix post_matrix = SKMatrix.CreateIdentity();
+           //SKMatrix.Concat(ref post_matrix, recording_anvas.TotalMatrix, transform_matrix_geometry);
+
+           //recording_anvas.SetMatrix(post_matrix);
+           //recording_anvas.DrawPath(this.path, this.linear_gradient_brush.ToPaint());
+           if (glyphs_signal == "Glyphs")
+           {
+               xps_glyphs.Draw(recording_anvas);
+           }
+           else
+           {
+               xps_path.Draw(recording_anvas);
+           }
+           //recording_anvas.SetMatrix(pre_matrix);
+           SKPicture picture = record.EndRecording();
+
+           this.InternalPaint.Shader = SKShader.CreatePicture(picture, this.tile_mode_x, this.tile_mode_x, pre_scale_matrix, ViewBox);
+       }
+   }
+
+   public class XPSGradientBrush : XPSBrush
+   {
+       public string ColorInterpolationMode { get; set; }
+       public string GradientStops { get; set; }
+       public string MappingMode { get; set; }
+       public string SpreadMethod { get; set; }
+
+   }
+
+   public class XPSLinearGradientBrush : XPSGradientBrush
+   {
+       public SKPoint StartPoint { get; set; }
+       public SKPoint EndPoint { get; set; }
+
+       public SKShaderTileMode TileMode;
+
+       public XPSLinearGradientBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           Parse(source, zip_file);
+       }
+
+       private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           this.MappingMode = source.GetAttribute("MappingMode");
+           this.StartPoint = new SKPoint(float.Parse(source.GetAttribute("StartPoint").Split(",")[0]), float.Parse(source.GetAttribute("StartPoint").Split(",")[1]));
+           this.EndPoint = new SKPoint(float.Parse(source.GetAttribute("EndPoint").Split(",")[0]), float.Parse(source.GetAttribute("EndPoint").Split(",")[1]));
+           this.SpreadMethod = source.GetAttribute("SpreadMethod");
+           source.ReadToDescendant("LinearGradientBrush.GradientStops");
+
+           List<SKColor> color_list = new List<SKColor>();
+           List<float> offset_list = new List<float>();
+
+
+           if (this.SpreadMethod == "Pad")
+           {
+               this.TileMode = SKShaderTileMode.Clamp;
+           }
+           else if (this.SpreadMethod == "Repeat")
+           {
+               this.TileMode = SKShaderTileMode.Repeat;
+           }
+           else if (this.SpreadMethod == "Reflect")
+           {
+               this.TileMode = SKShaderTileMode.Mirror;
+           }
+
+           while (source.Read())
+           {
+               if (source.NodeType == XmlNodeType.Element || source.NodeType == XmlNodeType.Text || source.NodeType == XmlNodeType.EndElement)
+               {
+                   if (source.Name == "GradientStop")
+                   {
+
+                       if (source.GetAttribute("Color").Length == 7)
+                       {
+                           color_list.Add(new SKColor(uint.Parse("FF" + source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
+                       }
+                       else if (source.GetAttribute("Color").Length == 9)
+                       {
+                           color_list.Add(new SKColor(uint.Parse(source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
+                       }
+
+                       offset_list.Add(float.Parse(source.GetAttribute("Offset")));
+                   }
+
+                   if (source.Name == "LinearGradientBrush.GradientStops" && source.NodeType == XmlNodeType.EndElement)
+                   {
+                       break;
+                   }
+               }
+           }
+           this.InternalPaint.Shader = SKShader.CreateLinearGradient( this.StartPoint, this.EndPoint, color_list.ToArray(), offset_list.ToArray(), this.TileMode );
+       }
+   }
+
+   public class XPSRadialGradientBrush : XPSGradientBrush
+   {
+       public SKPoint Center { get; set; }
+       public SKPoint GradientOrigin { get; set; }
+       public float RadiusX { get; set; }
+       public float RadiusY { get; set; }
+
+       public SKShaderTileMode TileMode;
+
+       public XPSRadialGradientBrush(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           Parse(source, zip_file);
+       }
+
+       private void Parse(XmlReader source, Java.Util.Zip.ZipFile zip_file)
+       {
+           this.MappingMode = source.GetAttribute("MappingMode");
+           this.Center =  new SKPoint(float.Parse(source.GetAttribute("Center").Split(",")[0]), float.Parse(source.GetAttribute("Center").Split(",")[1]));
+           this.GradientOrigin = new SKPoint(float.Parse(source.GetAttribute("GradientOrigin").Split(",")[0]), float.Parse(source.GetAttribute("GradientOrigin").Split(",")[1])); 
+           this.RadiusX = float.Parse(source.GetAttribute("RadiusX"));
+           this.RadiusY = float.Parse(source.GetAttribute("RadiusY"));
+           this.SpreadMethod = source.GetAttribute("SpreadMethod");
+
+
+           if (this.SpreadMethod == "Pad")
+           {
+               this.TileMode = SKShaderTileMode.Clamp;
+           }
+           else if (this.SpreadMethod == "Repeat")
+           {
+               this.TileMode = SKShaderTileMode.Repeat;
+           }
+           else if (this.SpreadMethod == "Reflect")
+           {
+               this.TileMode = SKShaderTileMode.Mirror;
+           }
+
+
+           source.ReadToDescendant("RadialGradientBrush.GradientStops");
+           List<SKColor> color_list = new List<SKColor>();
+           List<float> offset_list = new List<float>();
+
+           while (source.Read())
+           {
+               if (source.NodeType == XmlNodeType.Element || source.NodeType == XmlNodeType.Text || source.NodeType == XmlNodeType.EndElement)
+               {
+                   if (source.Name == "GradientStop")
+                   {
+
+                       if (source.GetAttribute("Color").Length == 7)
+                       {
+                           color_list.Add(new SKColor(uint.Parse("FF" + source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
+                       }
+                       else if (source.GetAttribute("Color").Length == 9)
+                       {
+                           color_list.Add(new SKColor(uint.Parse(source.GetAttribute("Color").Substring(1), System.Globalization.NumberStyles.HexNumber)));
+                       }
+
+                       offset_list.Add(float.Parse(source.GetAttribute("Offset")));
+                   }
+
+                   if (source.Name == "RadialGradientBrush.GradientStops" && source.NodeType == XmlNodeType.EndElement)
+                   {
+                       break;
+                   }
+               }
+           }
+
+           SKMatrix gradient_matrix = new SKMatrix();
+           float ScaleY = this.RadiusY / this.RadiusX;
+           gradient_matrix = new SKMatrix(1, 0, 0, 0, ScaleY, -(ScaleY - 1) * Center.Y, 0, 0, 1);
+
+           this.InternalPaint.Shader = SKShader.CreateTwoPointConicalGradient( this.GradientOrigin, 0, this.Center, this.RadiusX, color_list.ToArray(), offset_list.ToArray(), this.TileMode, gradient_matrix);
+       }
+   }
+
+   //*/
 
     public class XPSGeometry : XPSAnimatable
     {
