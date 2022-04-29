@@ -842,7 +842,7 @@ namespace xps_parser
             XmlDocument localInfo_Xml = new XmlDocument();
             localInfo_Xml.Load(XmlStream);
             XmlStream.Close();
-            Java.Util.Zip.ZipFile zip_file = new Java.Util.Zip.ZipFile(CreateCacheFile(this, "Doc2_2.xps"));
+            Java.Util.Zip.ZipFile zip_file = new Java.Util.Zip.ZipFile(CreateCacheFile(this, "Doc2.xps"));
 
             Stream xml_file_stream = zip_file.GetInputStream(zip_file.GetEntry("FixedDocSeq.fdseq"));
 
@@ -875,8 +875,6 @@ namespace xps_parser
 
                         if ( r.Name == "FixedPage" && r.NodeType == XmlNodeType.Element)
                         {
-                            //parse_FixedPage(r);
-
                             XPSFixedPage xps_fixedpage = new XPSFixedPage(r);
                             xps_fixedpage.parse_FixedPage(r, zip_file, canvas);
                         }
@@ -1042,8 +1040,6 @@ namespace xps_parser
                     {
                         Console.WriteLine("<" + source.Name + ">");
                         Console.WriteLine(source.GetAttribute("Clip"));
-                        //XPSGlyphs_for_parse xps_glyphs_parser = new XPSGlyphs_for_parse(source);
-                        //this.xps_canvas_data.xps_data_children.Add( xps_glyphs_parser.parse_Glyphs(source) );
                         XPSGlyphs xps_glyphs = new XPSGlyphs(source,zip_file);
                         xps_glyphs.Draw(canvas);
                     }
@@ -1200,6 +1196,11 @@ namespace xps_parser
                 }
             }
 
+            if (this.xps_path_data.Clip != null && this.xps_path_data.Data != null && this.xps_path_data.Fill.xps_brush_data.signal == "ImageBrush")
+            {
+                canvas.DrawPath(SKPath.ParseSvgPathData(this.xps_path_data.Data), this.xps_path_data.Fill.xps_brush_data.InternalPaint);
+            }
+
 
             if (this.xps_path_data.Stroke != null && this.xps_path_geometry.signal == "Stroke")
             {
@@ -1222,7 +1223,7 @@ namespace xps_parser
                 }
             }
 
-            if (this.xps_path_data.Clip != null && this.xps_path_data.Data == null) //PathGeometry with RadialGradientBrush
+            if (this.xps_path_data.Clip != null && this.xps_path_data.Data == null)
             {
                 for (int i = 0; i < this.xps_path_geometry.Figures.Count; i++)
                 {
@@ -1230,10 +1231,7 @@ namespace xps_parser
                 }
             }
 
-            if (this.xps_path_data.Clip != null && this.xps_path_data.Data != null && this.xps_path_data.Fill.xps_brush_data.signal == "ImageBrush" )
-            {
-                canvas.DrawPath(SKPath.ParseSvgPathData(this.xps_path_data.Data), this.xps_path_data.Fill.xps_brush_data.InternalPaint);
-            }
+
         }
     }
 
@@ -1804,8 +1802,6 @@ namespace xps_parser
         public List<XPSPathFigure> Figures = new List<XPSPathFigure>(0);
         public string FillRule { get; set; }
 
-        private SKPathFillType InternalFillRule;
-        private readonly SKPath InternalData = new SKPath();
         public XPSPathGeometry_Data xps_path_geometry_data = new XPSPathGeometry_Data();
 
         public string signal;
