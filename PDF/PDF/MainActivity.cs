@@ -536,147 +536,101 @@ namespace PDF
             pdf_trailer.Entries.Add("/Root", read_obj_index(trailer_string, "/Root"));
             pdf_trailer.Entries.Add("/Info", read_obj_index(trailer_string, "/Info"));
 
-            //string[] string_object = content.Split("endobj");
-
-            //string root_position = xref["1"];
-            //Console.WriteLine("==========root_position==========");
-            //Console.WriteLine(root_position);
-
-            watch = System.Diagnostics.Stopwatch.StartNew();
-            // the code that you want to measure comes here
-
-            string[] string_object = content.Split("endobj");
-
-            watch.Stop();
-            elapsedMs = watch.ElapsedMilliseconds;
-
-            Console.WriteLine("==========ElapsedMilliseconds[endobj]=====");
-            Console.WriteLine(elapsedMs);
-
+            int line_number = int.Parse(xref["1"].Split(" ")[0]);
+            string document_catalog_object = read_obj(content, line_number);
             document_catalog document_catalog = new document_catalog();
-            document_catalog.Entries.Add("/Type", read_string(string_object[0], "/Type"));
-            document_catalog.Entries.Add("/Outlines", read_obj_index(string_object[0], "/Outlines"));
-            document_catalog.Entries.Add("/Pages", read_obj_index(string_object[0], "/Pages"));
+            document_catalog.Entries.Add("/Type", read_string(document_catalog_object, "/Type"));
+            document_catalog.Entries.Add("/Outlines", read_obj_index(document_catalog_object, "/Outlines"));
+            document_catalog.Entries.Add("/Pages", read_obj_index(document_catalog_object, "/Pages"));
 
-            /*
+            
             Pages pages = new Pages();
-            pages.Entries.Add("/Type", read_string(string_object[2], "/Type"));
-            pages.Entries.Add("/Count", read_int(string_object[2], "/Count"));
-            pages.Entries.Add("/Kids", read_array(string_object[2], "/Kids"));
+            line_number = int.Parse(xref["2"].Split(" ")[0]);
+            string pages_object = read_obj(content, line_number);
+            pages.Entries.Add("/Type", read_string(pages_object, "/Type"));
+            pages.Entries.Add("/Count", read_int(pages_object, "/Count"));
+            pages.Entries.Add("/Kids", read_array(pages_object, "/Kids"));
 
+
+            line_number = int.Parse(xref["3353"].Split(" ")[0]);
+            string page_object = read_obj(content, line_number);
             Page page = new Page();
-            page.Entries.Add("/Type", read_string(string_object[3], "/Type"));
-            page.Entries.Add("/Parent", read_obj_index(string_object[3], "/Parent"));
-            page.Entries.Add("/MediaBox", read_array(string_object[3], "/MediaBox"));
-            page.Entries.Add("/Contents", read_obj_index(string_object[3], "/Contents"));
+            page.Entries.Add("/Type", read_string(page_object, "/Type"));
+            page.Entries.Add("/Parent", read_obj_index(page_object, "/Parent"));
+            page.Entries.Add("/MediaBox", read_array(page_object, "/MediaBox"));
+            page.Entries.Add("/Contents", read_obj_index(page_object, "/Contents"));
 
+            line_number = int.Parse(xref["4459"].Split(" ")[0]);
+            page_object = read_obj(content, line_number);
             Page page_2 = new Page();
-            page_2.Entries.Add("/Type", read_string(string_object[5], "/Type"));
-            page_2.Entries.Add("/Parent", read_obj_index(string_object[5], "/Parent"));
-            page_2.Entries.Add("/MediaBox", read_array(string_object[5], "/MediaBox"));
-            page_2.Entries.Add("/Contents", read_obj_index(string_object[5], "/Contents"));
+            page_2.Entries.Add("/Type", read_string(page_object, "/Type"));
+            page_2.Entries.Add("/Parent", read_obj_index(page_object, "/Parent"));
+            page_2.Entries.Add("/MediaBox", read_array(page_object, "/MediaBox"));
+            page_2.Entries.Add("/Contents", read_obj_index(page_object, "/Contents"));
 
             //*/
 
             
-        string text = "";
+            string text = "";
 
-        text = text + "[trailer]\r\n";
-        foreach (KeyValuePair<string, string> kvp in pdf_trailer.Entries)
-        {
-            Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
-            text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
-        }
+            text = text + "[trailer]\r\n";
+            foreach (KeyValuePair<string, string> kvp in pdf_trailer.Entries)
+            {
+                Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
+                text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
+            }
 
-        text = text + "[document_catalog]\r\n";
-        foreach (KeyValuePair<string, string> kvp in document_catalog.Entries)
-        {
-            Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
-            text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
-        }
+            text = text + "[document_catalog]\r\n";
+            foreach (KeyValuePair<string, string> kvp in document_catalog.Entries)
+            {
+                Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
+                text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
+            }
 
-        /*
-        text = text + "[Pages]\r\n";
-        foreach (KeyValuePair<string, string> kvp in pages.Entries)
-        {
-            Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
-            text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
-        }
-
-        text = text + "[Page]\r\n";
-        foreach (KeyValuePair<string, string> kvp in page.Entries)
-        {
-            Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
-            text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
-        }
-
-        text = text + "[Page 2]\r\n";
-        foreach (KeyValuePair<string, string> kvp in page_2.Entries)
-        {
-            Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
-            text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
-        }
-
-        //*/
+        
+            text = text + "[Pages]\r\n";
+            foreach (KeyValuePair<string, string> kvp in pages.Entries)
+            {
+                Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
+                text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
+            }
 
             
+            text = text + "[Page]\r\n";
+            foreach (KeyValuePair<string, string> kvp in page.Entries)
+            {
+                Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
+                text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
+            }
+
+            text = text + "[Page 2]\r\n";
+            foreach (KeyValuePair<string, string> kvp in page_2.Entries)
+            {
+                Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
+                text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
+            }
+
+            //*/
+
+
             AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
             text_view.SetText(text.ToCharArray(), 0, text.Length);
 
-            /*
-            string[] text_block = string_object[4].Split("BT");
-
-            SKPaint paint = new SKPaint();
-            paint.Style = SKPaintStyle.Fill;
-            paint.Color = new SKColor(0, 0, 0);
-            paint.StrokeWidth = 0;
-
-            for (int i = 1; i < text_block.Length; i++)
-            {
-                Console.WriteLine(read_text(text_block[i]));
-                Console.WriteLine(read_text_position(text_block[i]));
-                Console.WriteLine(read_height(text_block[i], "/F1"));
-                string position = read_text_position(text_block[i]);
-                paint.TextSize = float.Parse(read_height(text_block[i], "/F1"));
-                SKPoint point = new SKPoint( float.Parse( position.Split(" ")[0] ), (float)792.0000 - float.Parse(position.Split(" ")[1]) );
-                canvas.DrawText(read_text(text_block[i]),point,paint);
-            }
-
-            text_block = string_object[6].Split("BT");
-
-            paint = new SKPaint();
-            paint.Style = SKPaintStyle.Fill;
-            paint.Color = new SKColor(0, 0, 0);
-            paint.StrokeWidth = 0;
-
-            for (int i = 1; i < text_block.Length; i++)
-            {
-                Console.WriteLine(read_text(text_block[i]));
-                Console.WriteLine(read_text_position(text_block[i]));
-                Console.WriteLine(read_height(text_block[i], "/F1"));
-                string position = read_text_position(text_block[i]);
-                paint.TextSize = float.Parse(read_height(text_block[i], "/F1"));
-                SKPoint point = new SKPoint(float.Parse(position.Split(" ")[0]), (float)(792.0000 + 792.0000) - float.Parse(position.Split(" ")[1]));
-                canvas.DrawText(read_text(text_block[i]), point, paint);
-            }
-
-            canvas.Flush();
-            canvas.Restore();
-            //*/
         }
 
         public string read_int(string content, string label)
         {
             string result = "";
-            int entry_position = content.IndexOf(label) + label.Length + 1;
+            int entry_position = content.IndexOf(label) + label.Length ;
             while (true)
             {
+                result = result + content[entry_position];
+                entry_position++;
+
                 if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
                 {
                     break;
                 }
-                result = result + content[entry_position];
-                entry_position++;
             }
 
             return result;
@@ -741,6 +695,28 @@ namespace PDF
             return xref_dictionary;
         }
 
+        public string read_obj(string content, int index)
+        {
+            string result = "";
+
+            int entry_position = index;
+
+            
+            while (true)
+            {
+                if (content[entry_position] == 'e' && content[entry_position+1] == 'n' && content[entry_position+2] == 'd' && content[entry_position+3] == 'o' && content[entry_position+4] == 'b' && content[entry_position+5] == 'j')
+                {
+                    break;
+                }
+
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+
+        }
+
         public string read_height(string content, string label)
         {
             string result = "";
@@ -771,10 +747,16 @@ namespace PDF
         {
             string result = "";
             int entry_position = content.IndexOf(label) + label.Length;
-            while (content[entry_position] != '\r')
+
+            while (true)
             {
                 result = result + content[entry_position];
                 entry_position++;
+
+                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                {
+                    break;
+                }
             }
 
             return result;
@@ -792,6 +774,19 @@ namespace PDF
             }
 
             return result + 'R';
+        }
+
+        public string read_obj_id(ref string content)
+        {
+            string result = "";
+            int entry_position = 0;
+            while (content[entry_position] != 'o')
+            {
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result + "obj";
         }
 
         public string read_trailer(string content)
