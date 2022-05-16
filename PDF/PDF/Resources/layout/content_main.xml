@@ -7,16 +7,35 @@
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:showIn="@layout/activity_main">
 
+    <ScrollView
+    android:minWidth="25px"
+    android:minHeight="25px"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:id="@+id/scrollView1"
+    android:layout_marginLeft="16dp"
+    android:layout_marginRight="16dp">
+    <LinearLayout
+        android:orientation="vertical"
+        android:minWidth="25px"
+        android:minHeight="25px"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/linearLayout1">
     <TextView
         android:id="@+id/text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:text="Hello World!" />
-
     <skiasharp.views.android.SKCanvasView
         android:layout_width="match_parent"
         android:layout_height="100px"
         android:id="@+id/canvasView" />
+    </LinearLayout>
+</ScrollView>
+
+
+
 
 </RelativeLayout>

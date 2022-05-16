@@ -38,6 +38,8 @@ namespace PDF
     public class Pages
     {
         public Dictionary<string, string> Entries = new Dictionary<string, string>();
+        public List<Pages> pages_children_list = new List<Pages>();
+        public string context = new string("");
     }
 
     public class Page
@@ -525,10 +527,13 @@ namespace PDF
             Console.WriteLine("==========ElapsedMilliseconds[read_xref]=====");
             Console.WriteLine(elapsedMs);
 
+            Pages complete_pages =  make_pages(content, xref,"2");
+
             //foreach (KeyValuePair<string, string> kvp in xref)
             //{
             //    Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
             //}
+
 
 
             trailer pdf_trailer = new trailer();
@@ -552,27 +557,75 @@ namespace PDF
             pages.Entries.Add("/Kids", read_array(pages_object, "/Kids"));
 
 
+
             line_number = int.Parse(xref["3353"].Split(" ")[0]);
-            string page_object = read_obj(content, line_number);
+            string pages_object_2 = read_obj(content, line_number);
+            string object_type = read_string(pages_object_2, "/Type");
+
+            Pages pages_2 = new Pages();
             Page page = new Page();
-            page.Entries.Add("/Type", read_string(page_object, "/Type"));
-            page.Entries.Add("/Parent", read_obj_index(page_object, "/Parent"));
-            page.Entries.Add("/MediaBox", read_array(page_object, "/MediaBox"));
-            page.Entries.Add("/Contents", read_obj_index(page_object, "/Contents"));
+            if (object_type == "/Pages")
+            {
+                pages_2.Entries.Add("/Type", read_string(pages_object_2, "/Type"));
+                pages_2.Entries.Add("/Count", read_int(pages_object_2, "/Count"));
+                pages_2.Entries.Add("/Kids", read_array(pages_object_2, "/Kids"));
+
+            }
+            else if (object_type == "/Page")
+            {
+
+                page.Entries.Add("/Type", read_string(pages_object_2, "/Type"));
+
+                page.Entries.Add("/Parent", read_obj_index(pages_object_2, "/Parent"));
+                page.Entries.Add("/MediaBox", read_array(pages_object_2, "/MediaBox"));
+                page.Entries.Add("/Contents", read_obj_index(pages_object_2, "/Contents"));
+
+            }
+
 
             line_number = int.Parse(xref["4459"].Split(" ")[0]);
-            page_object = read_obj(content, line_number);
+            string pages_object_3 = read_obj(content, line_number);
+            string object_type_2 = read_string(pages_object_3, "/Type");
+
+            Pages pages_3 = new Pages();
+            Page page_2 = new Page();
+            if (object_type == "/Pages")
+            {
+
+
+                pages_3.Entries.Add("/Type", read_string(pages_object_3, "/Type"));
+                pages_3.Entries.Add("/Count", read_int(pages_object_3, "/Count"));
+                pages_3.Entries.Add("/Kids", read_array(pages_object_3, "/Kids"));
+
+            }
+            else if (object_type == "/Page")
+            {
+
+                page_2.Entries.Add("/Type", read_string(pages_object_3, "/Type"));
+
+                page_2.Entries.Add("/Parent", read_obj_index(pages_object_3, "/Parent"));
+                page_2.Entries.Add("/MediaBox", read_array(pages_object_3, "/MediaBox"));
+                page_2.Entries.Add("/Contents", read_obj_index(pages_object_3, "/Contents"));
+
+            }
+
+
+            /*
+            line_number = int.Parse(xref["4459"].Split(" ")[0]);
+            string page_object = read_obj(content, line_number);
             Page page_2 = new Page();
             page_2.Entries.Add("/Type", read_string(page_object, "/Type"));
             page_2.Entries.Add("/Parent", read_obj_index(page_object, "/Parent"));
             page_2.Entries.Add("/MediaBox", read_array(page_object, "/MediaBox"));
             page_2.Entries.Add("/Contents", read_obj_index(page_object, "/Contents"));
-
             //*/
 
             
             string text = "";
 
+            visit_tree_node(complete_pages, ref text);
+
+            /*
             text = text + "[trailer]\r\n";
             foreach (KeyValuePair<string, string> kvp in pdf_trailer.Entries)
             {
@@ -597,14 +650,14 @@ namespace PDF
 
             
             text = text + "[Page]\r\n";
-            foreach (KeyValuePair<string, string> kvp in page.Entries)
+            foreach (KeyValuePair<string, string> kvp in pages_2.Entries)
             {
                 Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
                 text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
             }
 
             text = text + "[Page 2]\r\n";
-            foreach (KeyValuePair<string, string> kvp in page_2.Entries)
+            foreach (KeyValuePair<string, string> kvp in pages_3.Entries)
             {
                 Console.WriteLine(string.Format("Key = {0}, Value = {1}", kvp.Key, kvp.Value));
                 text += string.Format("Key = {0}, Value = {1}" + "\r\n", kvp.Key, kvp.Value);
@@ -860,6 +913,114 @@ namespace PDF
 
             return line_result;
         }
+
+        public Pages make_pages(string content, Dictionary<string, string> xref, string object_index)
+        {
+            
+            Pages pages = new Pages();
+            object_index = object_index.Replace(" ", "");
+
+            //Console.WriteLine("================make_pages[start]=====================");
+            //Console.WriteLine(object_index);
+            //Console.WriteLine("================make_pages[end]=====================");
+
+            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
+
+            string pages_object = read_obj(content, line_number);
+            string type = read_string(pages_object, "/Type");
+            string Kids = read_array(pages_object, "/Kids");
+            pages.Entries.Add("/Type", type);
+            pages.Entries.Add("/Count", read_int(pages_object, "/Count"));
+            pages.Entries.Add("/Kids", Kids);
+            pages.context = pages_object;
+
+            Kids = Kids.Replace(" 0 ", " ");
+            Kids = Kids.Replace("[", "");
+            Kids = Kids.Replace("]", "");
+
+            Console.WriteLine("================[Pages][start]=====================");
+            Console.WriteLine(type);
+            Console.WriteLine(pages_object);
+            Console.WriteLine(Kids);
+            Console.WriteLine("================[Pages][end]=====================");
+
+            if (type.Contains("/Pages") && pages_object.Contains("/Kids"))
+            {
+                for (int i = 0; i < Kids.Split("R").Length; i++)
+                {
+                    string kids_index = Kids.Split("R")[i];
+                    //Console.WriteLine("================Kids[start]=====================");
+                    //Console.WriteLine(kids_index);
+                    //Console.WriteLine("================Kids[end]=====================");
+                    if(kids_index.Replace(" ","").Length>0)
+                    {
+                        pages.pages_children_list.Add(make_pages(content, xref, kids_index));
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine("================Kids[Stop]=====================");
+                Pages pages_end = new Pages();
+                pages_end.Entries.Add("/Kids", "None");
+                pages.pages_children_list.Add(pages_end);
+            }
+            return pages;
+        }
+
+
+        public string visit_tree_node(Pages pages, ref string text)
+        {
+            if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"].Contains("Pages"))
+            {
+                text += "====================[Pages][start]=====================\n";
+            }
+
+            if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"] != null)
+            {
+                text += pages.Entries["/Type"] + "\n";
+            }
+
+            if (pages.Entries.ContainsKey("/Count") && pages.Entries["/Count"] != null)
+            {
+                text += "Count = " + pages.Entries["/Count"] + "\n";
+            }
+
+            if (pages.context != null)
+            {
+                if (pages.context.Length > 10)
+                {
+                    text += "ID = " + pages.context.Substring(0, 10) + "\n";
+                }
+                else if (pages.context.Length <= 10 && pages.context.Length >=7 )
+                {
+                    text += "ID = " + pages.context.Substring(0, 6) + "\n";
+                }
+                
+            }
+
+            if (pages.Entries.ContainsKey("/Kids") && pages.Entries.ContainsKey("/Count") && pages.Entries["/Kids"] != null && pages.Entries["/Count"].Replace(" ", "") != "0")
+            {
+                text += "Kids = " + pages.Entries["/Kids"] + "\n";
+            }
+
+
+            for (int i = 0; i < pages.pages_children_list.Count; i++)
+            {
+                if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"].Contains("Page") )
+                {
+                    text += "====================[Page]=====================\n";
+                }
+
+                if (pages.Entries["/Kids"] != "None")
+                {
+                    visit_tree_node(pages.pages_children_list[i], ref text);
+                }
+            }
+
+            return text;
+        }
+
 
 
 
