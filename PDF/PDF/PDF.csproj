@@ -112,12 +112,6 @@
     <Folder Include="Resources\drawable\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="itext7">
-      <Version>7.2.2</Version>
-    </PackageReference>
-    <PackageReference Include="PDFsharp">
-      <Version>1.50.5147</Version>
-    </PackageReference>
     <PackageReference Include="SkiaSharp">
       <Version>2.80.3</Version>
     </PackageReference>
