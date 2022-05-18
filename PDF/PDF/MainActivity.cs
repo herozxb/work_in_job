@@ -255,6 +255,16 @@ namespace PDF
             return result;
         }
 
+        public string read_type(string content, int index)
+        {
+
+            int line_number = int.Parse(this.xref[index].Split(" ")[0]);
+            string content_object = read_obj(content, line_number);
+            string type = read_string(content_object, "/Type");
+
+            return type;
+        }
+
 
         public PagesTreeNode make_pages(string content, List<string> xref, int object_index)
         {
@@ -342,10 +352,10 @@ namespace PDF
         private void Initialize(MemoryStream PDFStream)
         {
             PDFStream.Position = CrossReferences.GetObjectPosition(RootIndex);
-            Root = PDFObject.Create(PDFStream, CrossReferences);
+            Root = PDFObject.Create(PDFStream, CrossReferences, RootIndex);
 
-            PDFStream.Position = CrossReferences.GetObjectPosition(InfoIndex);
-            Info = PDFObject.Create(PDFStream, CrossReferences);
+            //PDFStream.Position = CrossReferences.GetObjectPosition(InfoIndex);
+            //Info = PDFObject.Create(PDFStream, CrossReferences);
         }
 
         public PDFTrailer(MemoryStream ObjectStream, PDFCrossReferences References)
@@ -382,17 +392,22 @@ namespace PDF
             CrossReferences = References;
         }
 
-        public static PDFObject Create(MemoryStream PDFStream, PDFCrossReferences References)
+        public static PDFObject Create(MemoryStream PDFStream, PDFCrossReferences References, int ObjectIndex)
         {
+
             //Get Type;
-            string Type = "";
+            string Type = References.read_type(References.content, ObjectIndex);
+
+            Console.WriteLine("=========Type==========");
+            Console.WriteLine(Type);
+
             switch (Type)
             {
-                case "Catalog":
+                case "/Catalog":
                     return new PDFCatalog(PDFStream, References);
-                case "Pages":
+                case "/Pages":
                     return new PDFPages(PDFStream, References);
-                case "Page":
+                case "/Page":
                     return new PDFPage(PDFStream, References);
 
                 default:
@@ -406,6 +421,17 @@ namespace PDF
         public int OutlinesIndex;
         public int PagesIndex;
         public string Type;
+
+        public PDFPages Pages;
+
+        private void Initialize(MemoryStream PDFStream)
+        {
+            PDFStream.Position = CrossReferences.GetObjectPosition(PagesIndex);
+            Pages = (PDFPages)PDFObject.Create(PDFStream, CrossReferences, PagesIndex);
+
+            //PDFStream.Position = CrossReferences.GetObjectPosition(InfoIndex);
+            //Info = PDFObject.Create(PDFStream, CrossReferences);
+        }
 
         public PDFCatalog(MemoryStream PDFStream, PDFCrossReferences References) : base(PDFStream, References)
         {
@@ -424,6 +450,7 @@ namespace PDF
             this.OutlinesIndex = int.Parse(outlines.Split(" ")[0]);
             this.PagesIndex = int.Parse(pages.Split(" ")[0]);
 
+            Initialize(PDFStream);
         }
     }
     public class PagesTreeNode
@@ -508,10 +535,14 @@ namespace PDF
 
 
             PDFCrossReferences pdf_cross_reference = new PDFCrossReferences(stream);
-            pdf_cross_reference.make_position();
 
             PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
 
+            PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
+            Console.WriteLine("========PDFPages=========");
+            Console.WriteLine(pdf_pages.page_tree_node.Count);
+
+            /*
             Console.WriteLine(pdf_trailer_object.Size);
             Console.WriteLine(pdf_trailer_object.RootIndex);
             Console.WriteLine(pdf_trailer_object.InfoIndex);
@@ -530,6 +561,8 @@ namespace PDF
             Console.WriteLine(elapsedMs);
             Console.WriteLine(memory_stream.CanSeek);
             Console.WriteLine(pdf_cross_reference.GetObjectPosition(0));
+
+            /*
 
             string trailer_string = read_trailer(content);
 
@@ -631,6 +664,7 @@ namespace PDF
             page_2.Entries.Add("/Contents", read_obj_index(page_object, "/Contents"));
             //*/
 
+            /*
             
             string text = "";
 
@@ -675,11 +709,11 @@ namespace PDF
             }
 
             //*/
-
+            /*
 
             AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
             text_view.SetText(text.ToCharArray(), 0, text.Length);
-
+            //*/
         }
 
         public string read_int(string content, string label)
