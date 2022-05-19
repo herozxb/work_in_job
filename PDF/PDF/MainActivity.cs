@@ -20,6 +20,32 @@ using System.Text;
 
 namespace PDF
 {
+
+    public class trailer
+    {
+        public Dictionary<string, string> Entries = new Dictionary<string, string>();
+    }
+
+    public class document_catalog
+    {
+        public Dictionary<string, string> Entries = new Dictionary<string, string>();
+    }
+
+
+    public class Pages
+    {
+        public Dictionary<string, string> Entries = new Dictionary<string, string>();
+        public List<Pages> pages_tree_children_node_list = new List<Pages>();
+        public Page page_leaf_node = new Page();
+        public string context = new string("");
+    }
+
+    public class Page
+    {
+        public Dictionary<string, string> Entries = new Dictionary<string, string>();
+    }
+
+
     public class PDFCrossReferences
     {
         public string content;
@@ -483,17 +509,403 @@ namespace PDF
             string content = Encoding.ASCII.GetString(memory_stream.ToArray());
 
 
-            stream = assets.Open("sample_2.pdf");
+
+
+            //stream = assets.Open("sample_2.pdf");
+            //PDFCrossReferences pdf_cross_reference = new PDFCrossReferences(stream);
+
+            //PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
+
+            //PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
+
+
+            string trailer_string = read_trailer(content);
+
+            string startxref = read_int(trailer_string, "startxref");
+
+
             watch = System.Diagnostics.Stopwatch.StartNew();
+            Dictionary<string, string> xref = read_xref(content, int.Parse(startxref), read_length(content, int.Parse(startxref)));
 
+            watch.Stop();
+            elapsedMs = watch.ElapsedMilliseconds;
 
-            PDFCrossReferences pdf_cross_reference = new PDFCrossReferences(stream);
+            Console.WriteLine("==========ElapsedMilliseconds[read_xref]=====");
+            Console.WriteLine(elapsedMs);
 
-            PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
+            Pages complete_pages = make_pages(content, xref, "2");
 
-            PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
+            string text = "";
+
+            visit_tree_node( complete_pages, ref text);
+
+            AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
+            text_view.SetText(text.ToCharArray(), 0, text.Length);
 
         }
+
+
+        public string read_int(string content, string label)
+        {
+            string result = "";
+            int entry_position = content.IndexOf(label) + label.Length;
+            while (true)
+            {
+                result = result + content[entry_position];
+                entry_position++;
+
+                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                {
+                    break;
+                }
+            }
+
+            return result;
+        }
+
+        public string read_length(string content, int index)
+        {
+            string result = "";
+            int entry_position = index + 6;
+            while (true)
+            {
+                if (content[entry_position] == '\r')
+                {
+                    break;
+                }
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+        }
+
+        public string read_xref_line(string content, int index)
+        {
+            string result = "";
+            int entry_position = index;
+            while (true)
+            {
+                if (content[entry_position] == '\r')
+                {
+                    break;
+                }
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+        }
+
+        public Dictionary<string, string> read_xref(string content, int index, string xref_length)
+        {
+
+            Dictionary<string, string> xref_dictionary = new Dictionary<string, string>();
+
+            int entry_position = index + 6 + xref_length.Length + 2;
+
+            int length = int.Parse(xref_length.Split(" ")[1]);
+
+            //Console.WriteLine("content[entry_position]");
+            //Console.WriteLine(entry_position);
+            //Console.WriteLine(content[entry_position]);
+
+            //Console.WriteLine(read_xref_line(content, entry_position));
+
+            for (int i = 0; i < length; i++)
+            {
+                string xref_line = read_xref_line(content, entry_position);
+                entry_position = entry_position + xref_line.Length + 2;
+                xref_dictionary.Add(i.ToString(), xref_line);
+            }
+
+            return xref_dictionary;
+        }
+
+        public string read_obj(string content, int index)
+        {
+            string result = "";
+
+            int entry_position = index;
+
+
+            while (true)
+            {
+                if (content[entry_position] == 'e' && content[entry_position + 1] == 'n' && content[entry_position + 2] == 'd' && content[entry_position + 3] == 'o' && content[entry_position + 4] == 'b' && content[entry_position + 5] == 'j')
+                {
+                    break;
+                }
+
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+
+        }
+
+        public string read_height(string content, string label)
+        {
+            string result = "";
+            int entry_position = content.IndexOf(label) + label.Length;
+            while (content[entry_position] != 'T')
+            {
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+        }
+
+        public string read_array(string content, string label)
+        {
+            string result = "";
+            int entry_position = content.IndexOf(label) + label.Length;
+            while (content[entry_position] != ']')
+            {
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result + ']';
+        }
+
+        public string read_string(string content, string label)
+        {
+            string result = "";
+            int entry_position = content.IndexOf(label) + label.Length;
+
+            while (true)
+            {
+                result = result + content[entry_position];
+                entry_position++;
+
+                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                {
+                    break;
+                }
+            }
+
+            return result;
+        }
+
+
+        public string read_obj_index(string content, string label)
+        {
+            string result = "";
+            int entry_position = content.IndexOf(label) + label.Length;
+            while (content[entry_position] != 'R')
+            {
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result + 'R';
+        }
+
+        public string read_obj_id(ref string content)
+        {
+            string result = "";
+            int entry_position = 0;
+            while (content[entry_position] != 'o')
+            {
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result + "obj";
+        }
+
+        public string read_trailer(string content)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            string result = "";
+            result = content.Split("trailer")[1];     // time = 127 
+            //int index = content.IndexOf("trailer");     // time = 1434
+            //result = content.Substring(content.IndexOf("trailer")); 
+            watch.Stop();
+            var elapsedMs = watch.ElapsedMilliseconds;
+            Console.WriteLine("==========ElapsedMilliseconds[read_trailer]=====");
+            Console.WriteLine(elapsedMs);
+            //Console.WriteLine(index);
+
+            return result;
+        }
+
+        public string read_text(string content)
+        {
+            string result = "";
+            int entry_position = content.IndexOf("(") + "(".Length;
+            while (content[entry_position] != ')')
+            {
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+        }
+
+        public string read_text_position(string content)
+        {
+            string result = "";
+            int entry_position = content.IndexOf("Td") - 1;
+            while (content[entry_position] != '\n')
+            {
+                result = content[entry_position] + result;
+                entry_position--;
+            }
+
+            return result;
+        }
+
+
+        public string read_pdf_line(MemoryStream memory_stream)
+        {
+            string line_result = "";
+
+            memory_stream.Seek(38348, SeekOrigin.Begin);   // From 0, %PDF-1.7 \r\n
+            //Console.WriteLine(memory_stream.Position);
+            for (int i = 0; i < 20; i++)
+            {
+                line_result += (char)memory_stream.ReadByte();
+                Console.WriteLine(line_result); // From 38338 xref \r\n 0 space 39
+            }
+
+            return line_result;
+        }
+
+        public string read_pdf_line_from_string(string content, int start_position, int length)
+        {
+            string line_result = "";
+
+            //Console.WriteLine(memory_stream.Position);
+            for (int i = 0; i < length; i++)
+            {
+                line_result += (char)content[start_position + i];
+                Console.WriteLine(line_result); // From 38338 xref \r\n 0 space 39
+            }
+
+            return line_result;
+        }
+
+        public Pages make_pages(string content, Dictionary<string, string> xref, string object_index)
+        {
+
+            Pages pages = new Pages();
+            object_index = object_index.Replace(" ", "");
+
+            //Console.WriteLine("================make_pages[start]=====================");
+            //Console.WriteLine(object_index);
+            //Console.WriteLine("================make_pages[end]=====================");
+
+            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
+
+            string pages_object = read_obj(content, line_number);
+            string type = read_string(pages_object, "/Type");
+            string Kids = read_array(pages_object, "/Kids");
+            pages.Entries.Add("/Type", type);
+            pages.Entries.Add("/Count", read_int(pages_object, "/Count"));
+            pages.Entries.Add("/Kids", Kids);
+            pages.context = pages_object;
+
+            Kids = Kids.Replace(" 0 ", " ");
+            Kids = Kids.Replace("[", "");
+            Kids = Kids.Replace("]", "");
+
+            Console.WriteLine("================[Pages][start]=====================");
+            Console.WriteLine(type);
+            Console.WriteLine(pages_object);
+            Console.WriteLine(Kids);
+            Console.WriteLine("================[Pages][end]=====================");
+
+            if (type.Contains("/Pages") && pages_object.Contains("/Kids"))
+            {
+                for (int i = 0; i < Kids.Split("R").Length; i++)
+                {
+                    string kids_index = Kids.Split("R")[i];
+                    //Console.WriteLine("================Kids[start]=====================");
+                    //Console.WriteLine(kids_index);
+                    //Console.WriteLine("================Kids[end]=====================");
+                    if (kids_index.Replace(" ", "").Length > 0)
+                    {
+                        pages.pages_tree_children_node_list.Add(make_pages(content, xref, kids_index));
+                    }
+                }
+            }
+            else if(type.Contains("/Page") )
+            {
+                Console.WriteLine("================Kids[Stop]=====================");
+                Pages pages_end = new Pages();
+                pages_end.Entries.Add("/Kids", "None");
+
+                Page leaf_node_page = new Page();
+                leaf_node_page.Entries.Add("/Parent", read_obj_index(pages_object, "/Parent"));
+                Console.WriteLine(leaf_node_page.Entries["/Parent"]);
+
+                pages_end.page_leaf_node = leaf_node_page;
+                pages.pages_tree_children_node_list.Add(pages_end);
+            }
+            return pages;
+        }
+
+
+        public string visit_tree_node(Pages pages, ref string text)
+        {
+            if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"].Contains("Pages"))
+            {
+                text += "====================[Pages][start]=====================\n";
+            }
+
+            if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"] != null)
+            {
+                text += pages.Entries["/Type"] + "\n";
+            }
+
+            if (pages.Entries.ContainsKey("/Count") && pages.Entries["/Count"] != null)
+            {
+                text += "Count = " + pages.Entries["/Count"] + "\n";
+            }
+
+            if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/Parent") && pages.page_leaf_node.Entries["/Parent"] != null)
+            {
+                text += "Parent = " + pages.page_leaf_node.Entries["/Parent"] + "\n";
+            }
+
+            if (pages.context != null)
+            {
+                if (pages.context.Length > 10)
+                {
+                    text += "ID = " + pages.context.Substring(0, 10) + "\n";
+                }
+                else if (pages.context.Length <= 10 && pages.context.Length >= 7)
+                {
+                    text += "ID = " + pages.context.Substring(0, 6) + "\n";
+                }
+
+            }
+
+            if (pages.Entries.ContainsKey("/Kids") && pages.Entries.ContainsKey("/Count") && pages.Entries["/Kids"] != null && pages.Entries["/Count"].Replace(" ", "") != "0")
+            {
+                text += "Kids = " + pages.Entries["/Kids"] + "\n";
+            }
+
+
+            for (int i = 0; i < pages.pages_tree_children_node_list.Count; i++)
+            {
+                if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"].Contains("Page"))
+                {
+                    text += "====================[Page]=====================\n";
+                }
+
+                if (pages.Entries["/Kids"] != "None")
+                {
+                    visit_tree_node(pages.pages_tree_children_node_list[i], ref text);
+                }
+            }
+
+            return text;
+        }
+
 
         public override bool OnCreateOptionsMenu(IMenu menu)
         {
