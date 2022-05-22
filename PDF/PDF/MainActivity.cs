@@ -117,7 +117,7 @@ namespace PDF
                 result = result + content[entry_position];
                 entry_position++;
 
-                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                if (content[entry_position] == '\r' || content[entry_position] == '/' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -134,7 +134,7 @@ namespace PDF
             int entry_position = index + 6; // +6 jump the "xref/r/n" length
             while (true)
             {
-                if (content[entry_position] == '\r')
+                if (content[entry_position] == '\r' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -151,7 +151,7 @@ namespace PDF
             int entry_position = index;
             while (true)
             {
-                if (content[entry_position] == '\r')
+                if (content[entry_position] == '\r' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -245,7 +245,7 @@ namespace PDF
                 result = result + content[entry_position];
                 entry_position++;
 
-                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                if (content[entry_position] == '\r'  || content[entry_position] == '/' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -496,7 +496,7 @@ namespace PDF
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_2.pdf");
+            Stream stream = assets.Open("sample_3.pdf");
 
             watch.Stop();
             var elapsedMs = watch.ElapsedMilliseconds;
@@ -509,8 +509,14 @@ namespace PDF
             string content = Encoding.ASCII.GetString(memory_stream.ToArray());
 
             string trailer_string = read_trailer(content);
+            Console.WriteLine("=================startxref=================");
+            Console.WriteLine(trailer_string);
+
             string startxref = read_int(trailer_string, "startxref");
 
+
+
+            Console.WriteLine(startxref);
             watch = System.Diagnostics.Stopwatch.StartNew();
             Dictionary<string, string> xref = read_xref(content, int.Parse(startxref), read_length(content, int.Parse(startxref)));
 
@@ -554,20 +560,20 @@ namespace PDF
 
             //*/
 
-            string output_result = read_content( memory_stream, content, xref, "6942");
+            //string output_result = read_content( memory_stream, content, xref, "6942");
 
-            Console.WriteLine("==========output_result[start]===========");
-            Console.WriteLine(output_result);
-            Console.WriteLine("==========output_result[end]===========");
+            //Console.WriteLine("==========output_result[start]===========");
+            //Console.WriteLine(output_result);
+            //Console.WriteLine("==========output_result[end]===========");
 
 
-
-            
-            
-            Pages complete_pages = make_pages( memory_stream, content, xref, "2");
 
             
-            string text = "";
+            
+            Pages complete_pages = make_pages( memory_stream, content, xref, "16");
+
+            
+            string text = "";                                
 
             visit_tree_node(complete_pages, ref text);
 
@@ -575,7 +581,7 @@ namespace PDF
             text_view.SetText(text.ToCharArray(), 0, text.Length);
             //*/
 
-        }
+        }                                           
 
         public static Stream GenerateStreamFromString(string s)
         {
@@ -591,12 +597,14 @@ namespace PDF
         {
             string result = "";
             int entry_position = content.IndexOf(label) + label.Length;
+
             while (true)
             {
                 result = result + content[entry_position];
                 entry_position++;
+                Console.WriteLine(result);
 
-                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                if (content[entry_position] == '\r'  || content[entry_position] == '/' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -611,7 +619,7 @@ namespace PDF
             int entry_position = index + 6;
             while (true)
             {
-                if (content[entry_position] == '\r')
+                if (content[entry_position] == '\r' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -634,7 +642,7 @@ namespace PDF
             int entry_position = index;
             while (true)
             {
-                if (content[entry_position] == '\r')
+                if (content[entry_position] == '\r' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -651,6 +659,9 @@ namespace PDF
             Dictionary<string, string> xref_dictionary = new Dictionary<string, string>();
 
             int entry_position = index + 6 + xref_length.Length + 2;
+
+            Console.WriteLine("=================xref_length==================");
+            Console.WriteLine(xref_length);
 
             int length = int.Parse(xref_length.Split(" ")[1]);
 
@@ -730,6 +741,11 @@ namespace PDF
         public string read_array(string content, string label)
         {
             string result = "";
+
+            Console.WriteLine("==========read_array===========");
+            Console.WriteLine(content);
+            Console.WriteLine(label);
+
             int entry_position = content.IndexOf(label) + label.Length;
             while (content[entry_position] != ']')
             {
@@ -744,13 +760,18 @@ namespace PDF
         {
             string result = "";
             int entry_position = content.IndexOf(label) + label.Length;
+            Console.WriteLine("==========read_string===========");
+            Console.WriteLine(content);
+            Console.WriteLine(label);
+            Console.WriteLine(entry_position);
+
 
             while (true)
             {
                 result = result + content[entry_position];
                 entry_position++;
 
-                if (content[entry_position] == '\r' || content[entry_position] == ' ' || content[entry_position] == '/')
+                if (content[entry_position] == '\r'  || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -900,12 +921,26 @@ namespace PDF
             Console.WriteLine(pages_object);
             Console.WriteLine(stream_length);
 
-            if (int.Parse(stream_length) > 0)
+            if (stream_length.Length > 0)
             {
 
 
-                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;//2 is for "/r/n"
-                int stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r/n"
+
+                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r/n"
+                int stream_end = 0;
+
+                if (content[stream_start ] == '\n')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r/n"
+                }
+                else if(content[stream_start ] == '\r')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r/n"
+                }
+
+                
                 int length_stream = stream_end - stream_start;
 
                 memory_stream.Position = stream_start;
@@ -923,7 +958,7 @@ namespace PDF
                 using (MemoryStream compressStream = new MemoryStream(cutinput))
                 using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
                     decompressor.CopyTo(stream_output);
-                string output_result = Encoding.UTF8.GetString(stream_output.ToArray());
+                string output_result = Encoding.ASCII.GetString(stream_output.ToArray());
 
                 Console.WriteLine("==========output_result[start]===========");
                 Console.WriteLine(object_index);
@@ -963,6 +998,7 @@ namespace PDF
 
             Console.WriteLine("================[Pages][start]=====================");
             Console.WriteLine(type);
+            Console.WriteLine("================[Pages][type]=====================");
             Console.WriteLine(pages_object);
             Console.WriteLine(Kids);
             Console.WriteLine("================[Pages][end]=====================");
@@ -972,9 +1008,9 @@ namespace PDF
                 for (int i = 0; i < Kids.Split("R").Length; i++)
                 {
                     string kids_index = Kids.Split("R")[i];
-                    //Console.WriteLine("================Kids[start]=====================");
-                    //Console.WriteLine(kids_index);
-                    //Console.WriteLine("================Kids[end]=====================");
+                    Console.WriteLine("================Kids[start]=====================");
+                    Console.WriteLine(kids_index);
+                    Console.WriteLine("================Kids[end]=====================");
                     if (kids_index.Replace(" ", "").Length > 0)
                     {
                         pages.pages_tree_children_node_list.Add(make_pages(memory_stream,content, xref, kids_index));
