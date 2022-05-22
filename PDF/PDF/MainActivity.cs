@@ -509,8 +509,8 @@ namespace PDF
             string content = Encoding.ASCII.GetString(memory_stream.ToArray());
 
             string trailer_string = read_trailer(content);
-            Console.WriteLine("=================startxref=================");
-            Console.WriteLine(trailer_string);
+            //Console.WriteLine("=================startxref=================");
+            //Console.WriteLine(trailer_string);
 
             string startxref = read_int(trailer_string, "startxref");
 
@@ -572,6 +572,40 @@ namespace PDF
             
             Pages complete_pages = make_pages( memory_stream, content, xref, "2");
             //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
+
+
+
+            //Define the font state (Tf).
+            //Position the text cursor(Td).
+            //“Paint” the text onto the page(Tj).
+            //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
+
+            string stream_instruction = "BT \n " +          //begin
+                "/CS0 cs 0 0 0  scn \n" +                   //1. scn
+                "/GS0 gs \n " +                 
+                "/TT0 1 Tf \n " +                           //2. Tf
+                "9.96 0 0 9.96 72.024 745.92 Tm \n " +      //3. Tm
+                "()Tj \n " +                                //4. Tj
+                "0.6 0.6 0.6  scn \n " +                    //1. scn
+                "24.4 - 71.082 Td \n" +                     //2. Td
+                "()Tj \n" +                                 //3. Tj
+                "0 0 0  scn \n" +                           //1. scn
+                "/ TT1 1 Tf \n" +                           //2. Tf
+                "0.021 Tc 48 0 0 48 194.3 623.74 Tm \n" +   //3. Tm
+                "[(O)1(pen)1()1(XM)2(L)]TJ \n" +            //4. TJ
+                "0 Tc 5.78 0 Td \n" +                       //5. Td
+                "()Tj \n" +                                 //6. Tj
+                "0.02 Tc - 4.572 - 1.215 Td \n" +           //7. Td
+                "[(P)1(a)1(p) - 3(e) - 1(r)]TJ \n" +        //8. TJ
+                "0 Tc()Tj \n" +                             //9. Tj
+                "0.02 Tc - 2.066 - 1.216 Td \n" +           //10. Td
+                " [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n" + //11. TJ
+                "0 Tc 6.76 0 Td \n" +                       //12. Td
+                "(n)Tj \n" +                                //13. Tj
+                "0.734 0 Td  \n" +                          //14. Td
+                "()Tj \n" +                                 //15. Tj
+                "ET";                                       //0. ET
+
 
 
             string text = "";                                
@@ -661,8 +695,8 @@ namespace PDF
 
             int entry_position = index + 6 + xref_length.Length + 2;
 
-            Console.WriteLine("=================xref_length==================");
-            Console.WriteLine(xref_length);
+            //Console.WriteLine("=================xref_length==================");
+            //Console.WriteLine(xref_length);
 
             int length = int.Parse(xref_length.Split(" ")[1]);
 
@@ -743,9 +777,9 @@ namespace PDF
         {
             string result = "";
 
-            Console.WriteLine("==========read_array===========");
-            Console.WriteLine(content);
-            Console.WriteLine(label);
+            //Console.WriteLine("==========read_array===========");
+            //Console.WriteLine(content);
+            //Console.WriteLine(label);
 
             int entry_position = content.IndexOf(label) + label.Length;
             while (content[entry_position] != ']')
@@ -912,15 +946,15 @@ namespace PDF
 
             int line_number = int.Parse(xref[object_index].Split(" ")[0]);
 
-            Console.WriteLine("==========line_number==========");
-            Console.WriteLine(line_number);
+            //Console.WriteLine("==========line_number==========");
+            //Console.WriteLine(line_number);
 
             string pages_object = read_obj(content, line_number);
 
             string stream_length = read_stream_length(pages_object, "/Length");
 
-            Console.WriteLine(pages_object);
-            Console.WriteLine(stream_length);
+            //Console.WriteLine(pages_object);
+            //Console.WriteLine(stream_length);
 
             if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
             {
