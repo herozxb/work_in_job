@@ -569,10 +569,10 @@ namespace PDF
 
 
             
-            
+            /*
             Pages complete_pages = make_pages( memory_stream, content, xref, "2");
             //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
-
+            //*/
 
 
             //Define the font state (Tf).
@@ -606,8 +606,15 @@ namespace PDF
                 "()Tj \n" +                                 //15. Tj
                 "ET";                                       //0. ET
 
+            string[] scn_array = get_scn(stream_instruction);
 
+            Console.WriteLine("===========scn_array=============");
+            for (int i = 0; i < scn_array.Length; i++)
+            {
+                Console.WriteLine(scn_array[i]);
+            }
 
+            /*
             string text = "";                                
 
             visit_tree_node(complete_pages, ref text);
@@ -626,6 +633,16 @@ namespace PDF
             writer.Flush();
             stream.Position = 0;
             return stream;
+        }
+
+        public string[] get_scn(string stream_instruction)
+        {
+            string[] result;
+
+            result = stream_instruction.Split("scn");
+
+            return result;
+        
         }
 
         public string read_int(string content, string label)
