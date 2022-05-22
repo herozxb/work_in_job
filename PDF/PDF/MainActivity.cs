@@ -496,7 +496,7 @@ namespace PDF
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_3.pdf");
+            Stream stream = assets.Open("sample_2.pdf");
 
             watch.Stop();
             var elapsedMs = watch.ElapsedMilliseconds;
@@ -570,9 +570,10 @@ namespace PDF
 
             
             
-            Pages complete_pages = make_pages( memory_stream, content, xref, "16");
+            Pages complete_pages = make_pages( memory_stream, content, xref, "2");
+            //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
 
-            
+
             string text = "";                                
 
             visit_tree_node(complete_pages, ref text);
@@ -596,7 +597,7 @@ namespace PDF
         public string read_int(string content, string label)
         {
             string result = "";
-            int entry_position = content.IndexOf(label) + label.Length;
+            int entry_position = content.IndexOf(label) + label.Length + 1;
 
             while (true)
             {
@@ -771,7 +772,7 @@ namespace PDF
                 result = result + content[entry_position];
                 entry_position++;
 
-                if (content[entry_position] == '\r'  || content[entry_position] == '\n')
+                if (content[entry_position] == '\r'  || content[entry_position] == '\n' || content[entry_position] == '/')
                 {
                     break;
                 }
@@ -921,10 +922,8 @@ namespace PDF
             Console.WriteLine(pages_object);
             Console.WriteLine(stream_length);
 
-            if (stream_length.Length > 0)
+            if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
             {
-
-
 
                 int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r/n"
                 int stream_end = 0;
