@@ -566,7 +566,7 @@ namespace PDF
             
             Pages complete_pages = make_pages( memory_stream, content, xref, "2");
 
-            /*
+            
             string text = "";
 
             visit_tree_node(complete_pages, ref text);
@@ -923,7 +923,7 @@ namespace PDF
                 using (MemoryStream compressStream = new MemoryStream(cutinput))
                 using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
                     decompressor.CopyTo(stream_output);
-                string output_result = Encoding.Default.GetString(stream_output.ToArray());
+                string output_result = Encoding.UTF8.GetString(stream_output.ToArray());
 
                 Console.WriteLine("==========output_result[start]===========");
                 Console.WriteLine(object_index);
@@ -1003,7 +1003,7 @@ namespace PDF
             return pages;
         }
 
-
+        int counter = 0;
         public string visit_tree_node(Pages pages, ref string text)
         {
             if (pages.Entries.ContainsKey("/Type") && pages.Entries["/Type"].Contains("Pages"))
@@ -1034,6 +1034,12 @@ namespace PDF
             if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/Contents") && pages.page_leaf_node.Entries["/Contents"] != null)
             {
                 text += "Contents = " + pages.page_leaf_node.Entries["/Contents"] + "\n";
+            }
+
+            if (pages.page_leaf_node.content != null && counter < 1)
+            {
+                text += "Contents = " + pages.page_leaf_node.content + "\n";
+                counter++;
             }
 
             if (pages.context != null)
