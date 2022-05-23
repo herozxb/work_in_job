@@ -43,6 +43,13 @@ namespace PDF
         public string content;
     }
 
+    public class textOperators
+    {
+        public string scn;
+        public string Tf;
+        public string Tm;
+    
+    }
 
     public class PDFCrossReferences
     {
@@ -569,7 +576,7 @@ namespace PDF
 
 
             
-            /*
+            
             Pages complete_pages = make_pages( memory_stream, content, xref, "2");
             //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
             //*/
@@ -614,6 +621,30 @@ namespace PDF
                 Console.WriteLine(scn_array[i]);
             }
 
+
+            textOperators text_operators = new textOperators();
+            string[] scn_operations =  get_operation(scn_array[1]);
+
+            for (int i = 0; i < scn_operations.Length; i++)
+            {
+                Console.WriteLine("============[one]============");
+                Console.WriteLine(scn_operations[i]);
+                string text_single_operatorion = scn_operations[i];
+
+                if (text_single_operatorion.Contains("Tf"))
+                {
+                    text_operators.Tf = text_single_operatorion;
+                }
+
+                if (text_single_operatorion.Contains("Tm"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                }
+
+
+
+            }
+
             /*
             string text = "";                                
 
@@ -641,8 +672,22 @@ namespace PDF
 
             result = stream_instruction.Split("scn");
 
+            for (int i = 0; i < result.Length; i++)
+            {
+                result[i] = result[i] + "scn \n";
+            }
+
             return result;
         
+        }
+
+        string[] get_operation(string scn_block)
+        {
+            string[] result;
+
+            result = scn_block.Split('\n');
+
+            return result;
         }
 
         public string read_int(string content, string label)
@@ -712,16 +757,7 @@ namespace PDF
 
             int entry_position = index + 6 + xref_length.Length + 2;
 
-            //Console.WriteLine("=================xref_length==================");
-            //Console.WriteLine(xref_length);
-
             int length = int.Parse(xref_length.Split(" ")[1]);
-
-            //Console.WriteLine("content[entry_position]");
-            //Console.WriteLine(entry_position);
-            //Console.WriteLine(content[entry_position]);
-
-            //Console.WriteLine(read_xref_line(content, entry_position));
 
             for (int i = 0; i < length; i++)
             {
@@ -958,6 +994,45 @@ namespace PDF
 
         }
 
+        public string read_resources(string content, string label)
+        {
+            string result = "";
+
+            int entry_position = content.IndexOf(label) + label.Length;
+            int uncloseed_bracket = 0;
+
+            while (true)
+            {
+                if (content[entry_position] == '<' && content[entry_position+1] == '<')
+                {
+                    uncloseed_bracket++;
+                    result = result + "<<";
+                    entry_position = entry_position + 2;
+                    continue;
+                    
+                }
+
+                if (content[entry_position] == '>' && content[entry_position + 1] == '>')
+                {
+                    result = result + ">>";
+                    uncloseed_bracket--;
+                    if (uncloseed_bracket == 0)
+                    { 
+                        break;
+                    }
+                    entry_position = entry_position + 2;
+                    continue;
+                }
+
+
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+
+        }
+
         public string read_content(MemoryStream memory_stream, string content, Dictionary<string,string> xref, string object_index)
         {
 
@@ -1022,6 +1097,8 @@ namespace PDF
 
         }
 
+
+
         public Pages make_pages(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
         {
 
@@ -1079,6 +1156,9 @@ namespace PDF
                 string content_object = read_obj_index(pages_object, "/Contents");
                 content_object = clean_front_empty_space(content_object);
                 leaf_node_page.Entries.Add("/Contents", content_object);
+                string resources_object = read_resources(pages_object, "/Resources");
+                leaf_node_page.Entries.Add("/Resources", resources_object);
+
                 Console.WriteLine(leaf_node_page.Entries["/Parent"]);
                 leaf_node_page.content = read_content(memory_stream, content, xref, content_object.Split(" ")[0]);
                 Console.WriteLine(leaf_node_page.content);
