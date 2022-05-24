@@ -503,7 +503,7 @@ namespace PDF
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_2.pdf");
+            Stream stream = assets.Open("sample_3.pdf");
 
             watch.Stop();
             var elapsedMs = watch.ElapsedMilliseconds;
@@ -516,11 +516,13 @@ namespace PDF
             string content = Encoding.ASCII.GetString(memory_stream.ToArray());
 
             string trailer_string = read_trailer(content);
-            //Console.WriteLine("=================startxref=================");
-            //Console.WriteLine(trailer_string);
+
+            string size_in_trailer = read_int(trailer_string, "/Size");
+            string root_in_trailer = read_obj_index(trailer_string, "/Root");
+            string info_in_trailer = read_obj_index(trailer_string, "/Info");
 
             string startxref = read_int(trailer_string, "startxref");
-
+                               
 
 
             Console.WriteLine(startxref);
@@ -532,6 +534,21 @@ namespace PDF
 
             Console.WriteLine("==========ElapsedMilliseconds[read_xref]=====");
             Console.WriteLine(elapsedMs);
+
+
+
+            int line_number = int.Parse(xref[clean_front_empty_space(root_in_trailer).Split(" ")[0]].Split(" ")[0]);
+
+            string root_object = read_obj(content, line_number);
+
+            Console.WriteLine(root_object);
+
+            string pages_start_index = read_obj_index(root_object,"/Pages");
+
+            Console.WriteLine(pages_start_index);
+
+            Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0] );
+
 
             /*
             int line_number = int.Parse(xref["6942"].Split(" ")[0]);
@@ -576,8 +593,8 @@ namespace PDF
 
 
             
-            
-            Pages complete_pages = make_pages( memory_stream, content, xref, "2");
+
+            //Pages complete_pages = make_pages( memory_stream, content, xref, "2");
             //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
             //*/
 
@@ -587,6 +604,7 @@ namespace PDF
             //“Paint” the text onto the page(Tj).
             //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
 
+            /*
             string stream_instruction = "BT \n " +          //begin
                 "/CS0 cs 0 0 0  scn \n" +                   //1. scn
                 "/GS0 gs \n " +                 
@@ -645,7 +663,7 @@ namespace PDF
 
             }
 
-            /*
+            
             string text = "";                                
 
             visit_tree_node(complete_pages, ref text);
@@ -699,7 +717,6 @@ namespace PDF
             {
                 result = result + content[entry_position];
                 entry_position++;
-                Console.WriteLine(result);
 
                 if (content[entry_position] == '\r'  || content[entry_position] == '/' || content[entry_position] == '\n')
                 {
@@ -853,16 +870,25 @@ namespace PDF
             Console.WriteLine(label);
             Console.WriteLine(entry_position);
 
+            int slash_count = 0;
 
             while (true)
             {
-                result = result + content[entry_position];
-                entry_position++;
-
-                if (content[entry_position] == '\r'  || content[entry_position] == '\n' || content[entry_position] == '/')
+                if (content[entry_position] == '/')
                 {
+                    slash_count++;
+                }
+
+                if (content[entry_position] == '\r' || content[entry_position] == '\n' ||  slash_count>1)
+                {
+
                     break;
                 }
+
+                result = result + content[entry_position];
+                entry_position++;
+                
+
             }
 
             return result;
@@ -996,41 +1022,58 @@ namespace PDF
 
         public string read_resources(string content, string label)
         {
+
+
             string result = "";
 
-            int entry_position = content.IndexOf(label) + label.Length;
-            int uncloseed_bracket = 0;
+            string index_result = read_obj_index(content, label);
 
-            while (true)
+            if (index_result.Contains('<') || index_result.Contains('>'))
             {
-                if (content[entry_position] == '<' && content[entry_position+1] == '<')
-                {
-                    uncloseed_bracket++;
-                    result = result + "<<";
-                    entry_position = entry_position + 2;
-                    continue;
-                    
-                }
 
-                if (content[entry_position] == '>' && content[entry_position + 1] == '>')
+                int entry_position = content.IndexOf(label) + label.Length;
+                int uncloseed_bracket = 0;
+
+                while (true)
                 {
-                    result = result + ">>";
-                    uncloseed_bracket--;
-                    if (uncloseed_bracket == 0)
-                    { 
-                        break;
+                    if (content[entry_position] == '<' && content[entry_position + 1] == '<')
+                    {
+                        uncloseed_bracket++;
+                        result = result + "<<";
+                        entry_position = entry_position + 2;
+                        continue;
+
                     }
-                    entry_position = entry_position + 2;
-                    continue;
+
+                    if (content[entry_position] == '>' && content[entry_position + 1] == '>')
+                    {
+                        result = result + ">>";
+                        uncloseed_bracket--;
+                        if (uncloseed_bracket == 0)
+                        {
+                            break;
+                        }
+                        entry_position = entry_position + 2;
+                        continue;
+                    }
+
+
+                    result = result + content[entry_position];
+                    entry_position++;
                 }
 
+                return result;
 
-                result = result + content[entry_position];
-                entry_position++;
+
+            }
+            else if (index_result.Contains("R"))
+            {
+                return index_result;
             }
 
-            return result;
+            result = "No Resources";
 
+            return result;
         }
 
         public string read_content(MemoryStream memory_stream, string content, Dictionary<string,string> xref, string object_index)
@@ -1152,12 +1195,19 @@ namespace PDF
 
                 Page leaf_node_page = new Page();
                 leaf_node_page.Entries.Add("/Parent", read_obj_index(pages_object, "/Parent"));
+
+                //string resources_object = read_resources(pages_object, "/Resources");
+                //leaf_node_page.Entries.Add("/Resources", resources_object);
+
                 leaf_node_page.Entries.Add("/MediaBox", read_array(pages_object, "/MediaBox"));
+
                 string content_object = read_obj_index(pages_object, "/Contents");
                 content_object = clean_front_empty_space(content_object);
                 leaf_node_page.Entries.Add("/Contents", content_object);
-                string resources_object = read_resources(pages_object, "/Resources");
-                leaf_node_page.Entries.Add("/Resources", resources_object);
+
+                //leaf_node_page.Entries.Add("/Rotate", read_int(pages_object, "/Rotate"));
+
+                //leaf_node_page.Entries.Add("/Annots", read_obj_index(pages_object, "/Annots"));
 
                 Console.WriteLine(leaf_node_page.Entries["/Parent"]);
                 leaf_node_page.content = read_content(memory_stream, content, xref, content_object.Split(" ")[0]);
@@ -1192,6 +1242,12 @@ namespace PDF
                 text += "Parent = " + pages.page_leaf_node.Entries["/Parent"] + "\n";
             }
 
+            if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/Resources") && pages.page_leaf_node.Entries["/Resources"] != null)
+            {
+                text += "Resources = " + pages.page_leaf_node.Entries["/Resources"] + "\n";
+            }
+
+
             if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/MediaBox") && pages.page_leaf_node.Entries["/MediaBox"] != null)
             {
                 text += "MediaBox = " + pages.page_leaf_node.Entries["/MediaBox"] + "\n";
@@ -1200,6 +1256,16 @@ namespace PDF
             if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/Contents") && pages.page_leaf_node.Entries["/Contents"] != null)
             {
                 text += "Contents = " + pages.page_leaf_node.Entries["/Contents"] + "\n";
+            }
+
+            if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/Rotate") && pages.page_leaf_node.Entries["/Rotate"] != null)
+            {
+                text += "Rotate = " + pages.page_leaf_node.Entries["/Rotate"] + "\n";
+            }
+
+            if (pages.page_leaf_node != null && pages.page_leaf_node.Entries.ContainsKey("/Annots") && pages.page_leaf_node.Entries["/Annots"] != null)
+            {
+                text += "Annots = " + pages.page_leaf_node.Entries["/Annots"] + "\n";
             }
 
             if (pages.page_leaf_node.content != null && counter < 1)
