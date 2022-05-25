@@ -64,11 +64,12 @@ namespace PDF
 
         public int GetObjectRevision(int ObjectIndex) => Revisions[ObjectIndex];
 
-        public PDFCrossReferences(Stream stream)
+        public PDFCrossReferences(MemoryStream memory_stream)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
 
-            stream.CopyTo(this.memory_stream);
+            this.memory_stream = memory_stream;
+
             this.memory_stream.Position = 0;
             this.content = Encoding.ASCII.GetString(this.memory_stream.ToArray());
 
@@ -119,6 +120,12 @@ namespace PDF
         {
             string result = "";
             int entry_position = content.IndexOf(label) + label.Length;
+
+            while (!int.TryParse(content[entry_position].ToString(), out _))
+            {
+                entry_position++;
+            }
+
             while (true)
             {
                 result = result + content[entry_position];
@@ -447,7 +454,7 @@ namespace PDF
                     }
                 case "/Pages":
                     {
-                        int PagesIndex = 16;
+                        int PagesIndex = ObjectIndex;
                         return new PDFPages(PDFStream, References, PagesIndex);
                     }
                 case "/Page":
@@ -532,11 +539,11 @@ namespace PDF
 
     public class PDFPages : PDFObject
     {
-        public PagesTreeNode page_tree_node = new PagesTreeNode();
+        public PagesTreeNode pages_tree_node = new PagesTreeNode();
 
         public PDFPages(MemoryStream PDFStream, PDFCrossReferences References, int PagesIndex) : base(PDFStream, References)
         {
-            this.page_tree_node = References.make_pages(References.content, References.xref, PagesIndex);
+            this.pages_tree_node = References.make_pages(References.content, References.xref, PagesIndex);
         }
 
     }
@@ -545,34 +552,6 @@ namespace PDF
     {
         public PDFPage(MemoryStream PDFStream, PDFCrossReferences References) : base(PDFStream, References)
         {
-            /*
-            Console.WriteLine("================Kids[Stop]=====================");
-            Pages pages_end = new Pages();
-            pages_end.Entries.Add("/Kids", "None");
-
-            Page leaf_node_page = new Page();
-            leaf_node_page.Entries.Add("/Parent", read_obj_index(pages_object, "/Parent"));
-
-            //string resources_object = read_resources(pages_object, "/Resources");
-            //leaf_node_page.Entries.Add("/Resources", resources_object);
-
-            leaf_node_page.Entries.Add("/MediaBox", read_array(pages_object, "/MediaBox"));
-
-            string content_object = read_obj_index(pages_object, "/Contents");
-            content_object = clean_front_empty_space(content_object);
-            leaf_node_page.Entries.Add("/Contents", content_object);
-
-            //leaf_node_page.Entries.Add("/Rotate", read_int(pages_object, "/Rotate"));
-
-            //leaf_node_page.Entries.Add("/Annots", read_obj_index(pages_object, "/Annots"));
-
-            Console.WriteLine(leaf_node_page.Entries["/Parent"]);
-            //leaf_node_page.content = read_content(memory_stream, content, xref, content_object.Split(" ")[0]);
-            Console.WriteLine(leaf_node_page.content);
-
-            pages_end.page_leaf_node = leaf_node_page;
-            pages.pages_tree_children_node_list.Add(pages_end);
-            //*/
 
         }
     }
@@ -622,15 +601,16 @@ namespace PDF
             stream.CopyTo(memory_stream);
             string content = Encoding.ASCII.GetString(memory_stream.ToArray());
 
-            stream = assets.Open("sample_3.pdf");
-            PDFCrossReferences pdf_cross_reference = new PDFCrossReferences(stream);
+
+
+            PDFCrossReferences pdf_cross_reference = new PDFCrossReferences(memory_stream);
 
             PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
 
             PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
 
 
-            
+            int i = 0;
 
             /*
             string trailer_string = read_trailer(content);
