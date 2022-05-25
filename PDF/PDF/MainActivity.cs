@@ -296,7 +296,7 @@ namespace PDF
         }
 
 
-        public PagesTreeNode make_pages(MemoryStream ObjectStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
+        public PagesTreeNode make_pages(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
         {
             string content = References.content;
             List<string> xref = References.xref;
@@ -327,7 +327,7 @@ namespace PDF
 
                     if (kids_index.Replace(" ", "").Length > 0)
                     {
-                        pages_tree_node.pages_children_list.Add(make_pages(ObjectStream, References, int.Parse(kids_index)));
+                        pages_tree_node.pages_children_list.Add(make_pages(PDFStream, References, int.Parse(kids_index)));
                     }
 
                 }
@@ -335,45 +335,53 @@ namespace PDF
             else
             {
 
-                PageTreeLeafNode leaf_node_page = new PageTreeLeafNode();
-                leaf_node_page.Type = "PageLeafNode";
-
-                Console.WriteLine("================Kids[Stop]=====================");
-                if (pages_object.Contains("/Parent"))
-                {
-                    leaf_node_page.Parent = read_obj_index(pages_object, "/Parent");
-                }
-                if (pages_object.Contains("/MediaBox"))
-                {
-                    leaf_node_page.MediaBox = read_array(pages_object, "/MediaBox");
-                }
-
-                if (pages_object.Contains("/Contents"))
-                {
-                    string content_object = read_obj_index(pages_object, "/Contents");
-                    content_object = clean_front_empty_space(content_object);
-                    leaf_node_page.Contents = content_object;
-                }
-
-                if (pages_object.Contains("/Rotate"))
-                {
-                    leaf_node_page.Rotate = read_int(pages_object, "/Rotate");
-                }
-
-                if (pages_object.Contains("/Annots"))
-                {
-                    leaf_node_page.Annots = read_obj_index(pages_object, "/Annots");
-                }
-
-                //leaf_node_page.c = read_content(memory_stream, content, xref, content_object.Split(" ")[0]);
-                //Console.WriteLine(leaf_node_page.content);
-
-                pages_tree_node.page_tree_leaf_node=leaf_node_page;
+                PDFPage pdf_page = (PDFPage)PDFObject.Create(PDFStream, References, object_index);
+                pages_tree_node.page_tree_leaf_node= pdf_page;
             }
             return pages_tree_node;
         }
 
+        public PageTreeLeafNode  make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
+        {
+            string content = References.content;
+            List<string> xref = References.xref;
 
+            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
+
+            string pages_object = References.read_obj(content, line_number);
+
+            PageTreeLeafNode leaf_node_page = new PageTreeLeafNode();
+            leaf_node_page.Type = "PageLeafNode";
+
+            Console.WriteLine("================Kids[Stop]=====================");
+            if (pages_object.Contains("/Parent"))
+            {
+                leaf_node_page.Parent = References.read_obj_index(pages_object, "/Parent");
+            }
+            if (pages_object.Contains("/MediaBox"))
+            {
+                leaf_node_page.MediaBox = References.read_array(pages_object, "/MediaBox");
+            }
+
+            if (pages_object.Contains("/Contents"))
+            {
+                string content_object = References.read_obj_index(pages_object, "/Contents");
+                content_object = References.clean_front_empty_space(content_object);
+                leaf_node_page.Contents = content_object;
+            }
+
+            if (pages_object.Contains("/Rotate"))
+            {
+                leaf_node_page.Rotate = References.read_int(pages_object, "/Rotate");
+            }
+
+            if (pages_object.Contains("/Annots"))
+            {
+                leaf_node_page.Annots = References.read_obj_index(pages_object, "/Annots");
+            }
+
+            return leaf_node_page;
+        }
 
         public string clean_front_empty_space(string content)
         {
@@ -447,6 +455,7 @@ namespace PDF
             //Get Type;
             string Type = References.read_type(References.content, ObjectIndex);
             Type = Type.Replace(" ", "");
+            Type = Type.Replace(">", "");
 
             switch (Type)
             {
@@ -462,7 +471,8 @@ namespace PDF
                     }
                 case "/Page":
                     {
-                        return new PDFPage(PDFStream, References);
+                        int PageIndex = ObjectIndex;
+                        return new PDFPage(PDFStream, References, PageIndex);
                     }
 
                 default:
@@ -482,7 +492,7 @@ namespace PDF
         private void Initialize(MemoryStream PDFStream)
         {
             //PDFStream.Position = CrossReferences.GetObjectPosition(PagesIndex);
-            Pages = (PDFPages)PDFObject.Create(PDFStream, CrossReferences, PagesIndex);
+            this.Pages = (PDFPages)PDFObject.Create(PDFStream, CrossReferences, PagesIndex);
 
         }
 
@@ -520,7 +530,8 @@ namespace PDF
         public string Kids;
 
         public List<PagesTreeNode> pages_children_list = new List<PagesTreeNode>();
-        public PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
+        //public PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
+        public PDFPage page_tree_leaf_node;
     }
 
     public class PageTreeLeafNode
@@ -553,10 +564,10 @@ namespace PDF
 
     public class PDFPage : PDFObject
     {
-        PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
-        public PDFPage(MemoryStream PDFStream, PDFCrossReferences References) : base(PDFStream, References)
+        public PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
+        public PDFPage(MemoryStream PDFStream, PDFCrossReferences References, int PageIndex) : base(PDFStream, References)
         {
-
+            this.page_tree_leaf_node = References.make_page(PDFStream, References, PageIndex);
         }
     }
 
@@ -612,7 +623,6 @@ namespace PDF
             PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
 
             PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
-
 
 
             /*
@@ -980,7 +990,7 @@ namespace PDF
                     slash_count++;
                 }
 
-                if (content[entry_position] == '\r' || content[entry_position] == '\n' ||  slash_count>1)
+                if (content[entry_position] == '\r' || content[entry_position] == '\n' || content[entry_position] == '>' || slash_count > 1)
                 {
 
                     break;
@@ -991,6 +1001,9 @@ namespace PDF
                 
 
             }
+
+            Console.WriteLine(result);
+            Console.WriteLine("==========read_string[end]===========");
 
             return result;
         }
