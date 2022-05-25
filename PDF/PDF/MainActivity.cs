@@ -296,8 +296,10 @@ namespace PDF
         }
 
 
-        public PagesTreeNode make_pages(string content, List<string> xref, int object_index)
+        public PagesTreeNode make_pages(MemoryStream ObjectStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
         {
+            string content = References.content;
+            List<string> xref = References.xref;
 
             PagesTreeNode pages_tree_node = new PagesTreeNode();
 
@@ -325,13 +327,14 @@ namespace PDF
 
                     if (kids_index.Replace(" ", "").Length > 0)
                     {
-                        pages_tree_node.pages_children_list.Add(make_pages(content, xref, int.Parse(kids_index)));
+                        pages_tree_node.pages_children_list.Add(make_pages(ObjectStream, References, int.Parse(kids_index)));
                     }
 
                 }
             }
             else
             {
+
                 PageTreeLeafNode leaf_node_page = new PageTreeLeafNode();
                 leaf_node_page.Type = "PageLeafNode";
 
@@ -543,13 +546,14 @@ namespace PDF
 
         public PDFPages(MemoryStream PDFStream, PDFCrossReferences References, int PagesIndex) : base(PDFStream, References)
         {
-            this.pages_tree_node = References.make_pages(References.content, References.xref, PagesIndex);
+            this.pages_tree_node = References.make_pages(PDFStream, References, PagesIndex);
         }
 
     }
 
     public class PDFPage : PDFObject
     {
+        PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
         public PDFPage(MemoryStream PDFStream, PDFCrossReferences References) : base(PDFStream, References)
         {
 
@@ -589,7 +593,7 @@ namespace PDF
 
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_3.pdf");
+            Stream stream = assets.Open("sample_2.pdf");
 
             watch.Stop();
             var elapsedMs = watch.ElapsedMilliseconds;
@@ -610,7 +614,6 @@ namespace PDF
             PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
 
 
-            int i = 0;
 
             /*
             string trailer_string = read_trailer(content);
