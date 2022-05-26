@@ -7,6 +7,7 @@ using AndroidX.AppCompat.App;
 using AndroidX.AppCompat.Widget;
 using Google.Android.Material.FloatingActionButton;
 using Google.Android.Material.Snackbar;
+using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 using SkiaSharp;
 using SkiaSharp.Views.Android;
 using System;
@@ -602,6 +603,8 @@ namespace PDF
             canvas.Translate(6, 6);
             canvas.Scale(CanvasScale, CanvasScale);
 
+
+            /*
             AssetManager assets = this.Assets;
             Stream stream = assets.Open("sample_2.pdf");
 
@@ -609,14 +612,174 @@ namespace PDF
             stream.CopyTo(memory_stream);
 
 
-
+            
             PDFCrossReferences pdf_cross_reference = new PDFCrossReferences(memory_stream);
 
             PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
 
             PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
+            //*/
 
-        }                                           
+
+
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            AssetManager assets = this.Assets;
+            Stream stream = assets.Open("sample_2.pdf");
+
+            watch.Stop();
+            var elapsedMs = watch.ElapsedMilliseconds;
+            Console.WriteLine("==========ElapsedMilliseconds[assets.Open]=====");
+            Console.WriteLine(elapsedMs);
+            Console.WriteLine(stream.CanSeek);
+
+            MemoryStream memory_stream = new MemoryStream();
+            stream.CopyTo(memory_stream);
+            string content = Encoding.ASCII.GetString(memory_stream.ToArray());
+
+            string trailer_string = read_trailer(content);
+
+            string size_in_trailer = read_int(trailer_string, "/Size");
+            string root_in_trailer = read_obj_index(trailer_string, "/Root");
+            string info_in_trailer = read_obj_index(trailer_string, "/Info");
+
+            string startxref = read_int(trailer_string, "startxref");
+
+
+
+            Console.WriteLine(startxref);
+            watch = System.Diagnostics.Stopwatch.StartNew();
+            Dictionary<string, string> xref = read_xref(content, int.Parse(startxref), read_length(content, int.Parse(startxref)));
+
+            watch.Stop();
+            elapsedMs = watch.ElapsedMilliseconds;
+
+            Console.WriteLine("==========ElapsedMilliseconds[read_xref]=====");
+            Console.WriteLine(elapsedMs);
+
+
+
+            int line_number = int.Parse(xref[clean_front_empty_space(root_in_trailer).Split(" ")[0]].Split(" ")[0]);
+
+            string root_object = read_obj(content, line_number);
+
+            Console.WriteLine(root_object);
+
+            string pages_start_index = read_obj_index(root_object, "/Pages");
+
+            Console.WriteLine(pages_start_index);
+
+            //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
+
+            string output_result = read_content( memory_stream, content, xref, "3024");
+
+            Console.WriteLine("==========output_result[start]===========");
+            Console.WriteLine(output_result);
+            Console.WriteLine("==========output_result[end]===========");
+
+            /*
+            int line_number = int.Parse(xref["6942"].Split(" ")[0]);
+            string pages_object = read_obj(content, line_number);
+            int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length+2;//2 is for "/r/n"
+            int stream_end = line_number + search_position_from_content(pages_object, "endstream")-2; //2 is for "/r/n"
+            int length_stream = stream_end - stream_start;
+            memory_stream.Position = stream_start;
+            byte[] byte_stream = new byte[length_stream];
+            
+            memory_stream.Read(byte_stream, 0, length_stream);
+            string sub_string = content.Substring(stream_start, length_stream);
+            Console.WriteLine("=========sub_string============");
+            Console.WriteLine(sub_string);
+            // Convert a C# string to a byte array  
+            byte[] bytes = Encoding.Default.GetBytes(sub_string);
+            Console.WriteLine(bytes.Length);
+            //jump 2 bytes of the stream
+            byte[] cutinput = new byte[byte_stream.Length - 2];
+            Array.Copy(byte_stream, 2, cutinput, 0, cutinput.Length);
+            MemoryStream stream_output = new MemoryStream();
+            using (MemoryStream compressStream = new MemoryStream(cutinput))
+            using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
+                decompressor.CopyTo(stream_output);
+            string output_result = Encoding.Default.GetString(stream_output.ToArray());
+            //*/
+
+            //string output_result = read_content( memory_stream, content, xref, "6942");
+
+            //Console.WriteLine("==========output_result[start]===========");
+            //Console.WriteLine(output_result);
+            //Console.WriteLine("==========output_result[end]===========");
+
+
+
+
+
+            //Pages complete_pages = make_pages( memory_stream, content, xref, "2");
+            //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
+            //*/
+
+
+            //Define the font state (Tf).
+            //Position the text cursor(Td).
+            //“Paint” the text onto the page(Tj).
+            //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
+
+            /*
+            string stream_instruction = "BT \n " +          //begin
+                "/CS0 cs 0 0 0  scn \n" +                   //1. scn
+                "/GS0 gs \n " +                 
+                "/TT0 1 Tf \n " +                           //2. Tf
+                "9.96 0 0 9.96 72.024 745.92 Tm \n " +      //3. Tm
+                "()Tj \n " +                                //4. Tj
+                "0.6 0.6 0.6  scn \n " +                    //1. scn
+                "24.4 - 71.082 Td \n" +                     //2. Td
+                "()Tj \n" +                                 //3. Tj
+                "0 0 0  scn \n" +                           //1. scn
+                "/ TT1 1 Tf \n" +                           //2. Tf
+                "0.021 Tc 48 0 0 48 194.3 623.74 Tm \n" +   //3. Tm
+                "[(O)1(pen)1()1(XM)2(L)]TJ \n" +            //4. TJ
+                "0 Tc 5.78 0 Td \n" +                       //5. Td
+                "()Tj \n" +                                 //6. Tj
+                "0.02 Tc - 4.572 - 1.215 Td \n" +           //7. Td
+                "[(P)1(a)1(p) - 3(e) - 1(r)]TJ \n" +        //8. TJ
+                "0 Tc()Tj \n" +                             //9. Tj
+                "0.02 Tc - 2.066 - 1.216 Td \n" +           //10. Td
+                " [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n" + //11. TJ
+                "0 Tc 6.76 0 Td \n" +                       //12. Td
+                "(n)Tj \n" +                                //13. Tj
+                "0.734 0 Td  \n" +                          //14. Td
+                "()Tj \n" +                                 //15. Tj
+                "ET";                                       //0. ET
+            string[] scn_array = get_scn(stream_instruction);
+            Console.WriteLine("===========scn_array=============");
+            for (int i = 0; i < scn_array.Length; i++)
+            {
+                Console.WriteLine(scn_array[i]);
+            }
+            textOperators text_operators = new textOperators();
+            string[] scn_operations =  get_operation(scn_array[1]);
+            for (int i = 0; i < scn_operations.Length; i++)
+            {
+                Console.WriteLine("============[one]============");
+                Console.WriteLine(scn_operations[i]);
+                string text_single_operatorion = scn_operations[i];
+                if (text_single_operatorion.Contains("Tf"))
+                {
+                    text_operators.Tf = text_single_operatorion;
+                }
+                if (text_single_operatorion.Contains("Tm"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                }
+            }
+            
+            string text = "";                                
+            visit_tree_node(complete_pages, ref text);
+            AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
+            text_view.SetText(text.ToCharArray(), 0, text.Length);
+            //*/
+
+
+        }
 
         public static Stream GenerateStreamFromString(string s)
         {
@@ -1065,6 +1228,57 @@ namespace PDF
 
                 memory_stream.Read(byte_stream, 0, length_stream);
 
+                /*
+                int start = 0;
+                while ((byte_stream[start] == 0x0a) | (byte_stream[start] == 0x0d)) start++; // skip trailling cr, lf
+
+                Console.WriteLine("========start=========");
+                Console.WriteLine(start);
+
+
+                byte[] tempdata = new byte[byte_stream.Length - start];
+                Array.Copy(byte_stream, start, tempdata, 0, byte_stream.Length - start);
+
+                MemoryStream msInput = new MemoryStream(byte_stream);
+                MemoryStream msOutput = new MemoryStream();
+
+                Console.WriteLine("====================msInput======================");
+                Console.WriteLine(msInput.Length);
+                Console.WriteLine(msInput.Position);
+                try
+                {
+                    GZipStream decomp = new GZipStream(msInput, CompressionMode.Decompress);
+                    decomp.CopyTo(msOutput);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+
+                string output_result = Encoding.ASCII.GetString(msOutput.ToArray());
+                Console.WriteLine("====================msOutput======================");
+                Console.WriteLine(msOutput.Length);
+                Console.WriteLine(msOutput.Position);
+                //*/
+
+
+                var outputStream = new MemoryStream();
+                using var compressedStream = new MemoryStream(byte_stream);
+                using var inputStream = new InflaterInputStream(compressedStream);
+                inputStream.CopyTo(outputStream);
+                outputStream.Position = 0;
+                string output_result = Encoding.Default.GetString(outputStream.ToArray());
+                /*
+                Console.WriteLine("====================new[start]======================");
+                for (int i = 0; i < data.Length; i++)
+                {
+                    Console.Write(data[i]);
+                }
+                Console.WriteLine("====================new[end]======================");
+                //*/
+
+
+                /*
                 //jump 2 bytes of the stream 
                 byte[] cutinput = new byte[byte_stream.Length - 2];
                 Array.Copy(byte_stream, 2, cutinput, 0, cutinput.Length);
@@ -1073,8 +1287,10 @@ namespace PDF
                 using (MemoryStream compressStream = new MemoryStream(cutinput))
                 using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
                     decompressor.CopyTo(stream_output);
-                string output_result = Encoding.ASCII.GetString(stream_output.ToArray());
+                //string output_result = Encoding.ASCII.GetString(stream_output.ToArray());
+                //*/
 
+                //string output_result = "";
                 Console.WriteLine("==========output_result[start]===========");
                 Console.WriteLine(object_index);
                 Console.WriteLine(output_result);
