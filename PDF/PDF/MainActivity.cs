@@ -49,7 +49,10 @@ namespace PDF
         public string scn;
         public string Tf;
         public string Tm;
-    
+        public string Td;
+        public string Tj;
+        public string TJ;
+
     }
 
     public class PDFCrossReferences
@@ -146,7 +149,7 @@ namespace PDF
         public string read_length(string content, int index)
         {
             string result = "";
-            int entry_position = index + 6; // +6 jump the "xref/r/n" length
+            int entry_position = index + 6; // +6 jump the "xref/r\n" length
             while (true)
             {
                 if (content[entry_position] == '\r' || content[entry_position] == '\n')
@@ -208,7 +211,7 @@ namespace PDF
             for (int i = 0; i < length; i++)
             {
                 string xref_line = read_xref_line(content, entry_position);
-                entry_position = entry_position + xref_line.Length + 2; //+2 is to jump the "/r/n"
+                entry_position = entry_position + xref_line.Length + 2; //+2 is to jump the "/r\n"
                 xref_list.Add(xref_line);
             }
 
@@ -605,8 +608,9 @@ namespace PDF
 
 
             /*
+            
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_2.pdf");
+            Stream stream = assets.Open("sample_5.pdf");
 
             MemoryStream memory_stream = new MemoryStream();
             stream.CopyTo(memory_stream);
@@ -618,11 +622,12 @@ namespace PDF
             PDFTrailer pdf_trailer_object = new PDFTrailer(memory_stream, pdf_cross_reference);
 
             PDFPages pdf_pages = ((PDFCatalog)(pdf_trailer_object.Root)).Pages;
+            int i = 0;
             //*/
 
 
-
-
+            
+            
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
             Stream stream = assets.Open("sample_2.pdf");
@@ -680,8 +685,8 @@ namespace PDF
             /*
             int line_number = int.Parse(xref["6942"].Split(" ")[0]);
             string pages_object = read_obj(content, line_number);
-            int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length+2;//2 is for "/r/n"
-            int stream_end = line_number + search_position_from_content(pages_object, "endstream")-2; //2 is for "/r/n"
+            int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length+2;//2 is for "/r\n"
+            int stream_end = line_number + search_position_from_content(pages_object, "endstream")-2; //2 is for "/r\n"
             int length_stream = stream_end - stream_start;
             memory_stream.Position = stream_start;
             byte[] byte_stream = new byte[length_stream];
@@ -723,8 +728,105 @@ namespace PDF
             //“Paint” the text onto the page(Tj).
             //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
 
+            string stream_instruction_new =
+
+                "BT \n" +                                           //BT
+                "/ CS0 cs 0 0 0  scn \n" +                          //1.scn
+                " / GS0 gs\n" +
+                "  / TT0 1 Tf \n" +                                 //2. Tf
+                "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n" +      //3. Tm
+                "[(E) - 1(C) - 7(M)]TJ \n" +                        //4. TJ
+                "0 Tc 2.241 0 Td \n" +                              //5. Td
+                "(A)Tj \n" +                                        //6. Tj
+                "0.71 0 Td \n" +                                    //7. Td
+                "(-)Tj \n" +                                        //8. Tj
+                "0.027 Tc 0.482 0 Td \n" +                          //9. Td
+                "(38)Tj \n" +                                       //10.Tj
+                "0 Tc 1.313 0 Td \n" +                              //   Td
+                "(8)Tj \n" +                                        //   Tj
+                "0.651 0 Td \n" +                                   //   Td
+                "()Tj \n" +                                         //   Tj
+                "32.824 0 Td \n" +                                  //   Td
+                "(1)Tj \n" +                                        //   Tj
+                "0.663 0 Td \n" +                                   //   Td
+                "(8)Tj \n" +                                        //   Tj
+                "0.663 0 Td \n" +                                   //   Td
+                "(.)Tj \n" +                                        //   Tj
+                "0.386 0 Td \n" +                                   //   Td
+                "()Tj \n" +                                         //   Tj
+                "0.018 Tc 0.374 0 Td \n" +                          //   Td
+                "9.96 0 0 9.96 114.14 539.86 Tm  [(R)-10(end) - 10(er)11(i) - 21(ng) - 10() - 3(R)2(ul) - 21(e)]TJ \n" +  //TJ
+                "0 Tc(s)Tj \n" +                                    //   Tj
+                "8.497 0 Td \n" +                                   //   Td
+                "()Tj \n" +                                         //   Tj
+                "- 48.803 - 71.082 Td \n" +                         //   Td
+                " ()Tj \n" +                                        //   Tj
+                "19.147 0 Td \n" +                                  //   Td
+                "()Tj \n" +                                         //   Tj
+                "ET  0.004 Tc 0.349 0 Td \n" +                    //     ET Td
+
+                "     [(F)1(i) - 11(r)9(s)7(t)7(E)9(d)1(i) - 11(t)12(i) - 11(o)]TJ \n" +                                    //TJ
+                "0 Tc 5.374 0 Td \n" +                              //   Td
+                "(n)Tj \n" +                                        //   Tj
+                "0.639 0 Td \n" +                                   //   Td
+                "(,)Tj \n" +                                        //   Tj
+                "0.361 0 Td \n" +                                   //   Td
+                "()Tj \n" +                                         //   Tj
+                "0.003 Tc 0.349 0 Td \n" +                          //   Td
+                "69.504 537.82 159.866 24.24 re  [(Ju)-3(n) - 2(e)9()6(2)1(0)1(0)]TJ \n" +                                //TJ
+                "0 Tc(9)Tj \n" +                                    //   Tj
+                "5.243 0 Td \n" +                                   //   Td
+                "()Tj \n" +                                         //   Tj
+                "0.003 Tc 15.425 0 Td \n" +                         //   Td
+                "[(2)1(4)]TJ \n" +                                  //   TJ
+
+                "BT 0 Tc(7)Tj \n" +                                 //   BT Tj
+                "1.916 0 Td \n" +                                   //   Td
+                "()Tj \n" +                                         //   Tj
+                "ET \n";                                            //   ET
+
+            string[] scn_array = get_scn(output_result);
+            Console.WriteLine("===========scn_array=============");
+            for (int i = 0; i < scn_array.Length; i++)
+            {
+                Console.WriteLine(scn_array[i]);
+            }
+            textOperators text_operators = new textOperators();
+            string[] scn_operations = get_operation(scn_array[1]);
+            for (int i = 0; i < scn_operations.Length; i++)
+            {
+                Console.WriteLine("============[one]============");
+                //Console.WriteLine(scn_operations[i]);
+                string text_single_operatorion = scn_operations[i];
+                if (text_single_operatorion.Contains("Tf"))
+                {
+                    text_operators.Tf = text_single_operatorion;
+                    Console.WriteLine("Tf= "+scn_operations[i]);
+                }
+                if (text_single_operatorion.Contains("Tm"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                    Console.WriteLine("Tm= " + scn_operations[i]);
+                }
+                if (text_single_operatorion.Contains("Td"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                    Console.WriteLine("Td= " + scn_operations[i]);
+                }
+                if (text_single_operatorion.Contains("Tj"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                    Console.WriteLine("Tj= " + scn_operations[i]);
+                }
+                if (text_single_operatorion.Contains("TJ"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                    Console.WriteLine("TJ= " + scn_operations[i]);
+                }
+            }
+
             /*
-            string stream_instruction = "BT \n " +          //begin
+            string stream_instruction = "BT \n " +          //begin BT
                 "/CS0 cs 0 0 0  scn \n" +                   //1. scn
                 "/GS0 gs \n " +                 
                 "/TT0 1 Tf \n " +                           //2. Tf
@@ -1115,7 +1217,7 @@ namespace PDF
         public string read_stream_length(string content, string length_tag)
         {
             string result = "";
-            int entry_position = content.IndexOf(length_tag) + length_tag.Length; // +6 jump the "xref/r/n" length
+            int entry_position = content.IndexOf(length_tag) + length_tag.Length; // +6 jump the "xref/r\n" length
             while (true)
             {
                 if (content[entry_position] == '>' || content[entry_position] == '/')
@@ -1204,18 +1306,18 @@ namespace PDF
             if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
             {
 
-                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r/n"
+                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
                 int stream_end = 0;
 
                 if (content[stream_start ] == '\n')
                 {
                     stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r/n"
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
                 }
                 else if(content[stream_start ] == '\r')
                 {
                     stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r/n"
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
                 }
 
                 
