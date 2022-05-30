@@ -728,62 +728,77 @@ namespace PDF
             //“Paint” the text onto the page(Tj).
             //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
 
+            float page_width = (float)595.32;
+            float page_height = (float)842.04;
+
             string stream_instruction_new =
 
                 "BT \n" +                                           //BT
                 "/ CS0 cs 0 0 0  scn \n" +                          //1.scn
                 " / GS0 gs\n" +
                 "  / TT0 1 Tf \n" +                                 //2. Tf
-                "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n" +      //3. Tm
-                "[(E) - 1(C) - 7(M)]TJ \n" +                        //4. TJ
-                "0 Tc 2.241 0 Td \n" +                              //5. Td
-                "(A)Tj \n" +                                        //6. Tj
-                "0.71 0 Td \n" +                                    //7. Td
-                "(-)Tj \n" +                                        //8. Tj
-                "0.027 Tc 0.482 0 Td \n" +                          //9. Td
-                "(38)Tj \n" +                                       //10.Tj
-                "0 Tc 1.313 0 Td \n" +                              //   Td
-                "(8)Tj \n" +                                        //   Tj
-                "0.651 0 Td \n" +                                   //   Td
-                "()Tj \n" +                                         //   Tj
-                "32.824 0 Td \n" +                                  //   Td
-                "(1)Tj \n" +                                        //   Tj
-                "0.663 0 Td \n" +                                   //   Td
-                "(8)Tj \n" +                                        //   Tj
-                "0.663 0 Td \n" +                                   //   Td
-                "(.)Tj \n" +                                        //   Tj
-                "0.386 0 Td \n" +                                   //   Td
-                "()Tj \n" +                                         //   Tj
-                "0.018 Tc 0.374 0 Td \n" +                          //   Td
-                "9.96 0 0 9.96 114.14 539.86 Tm  [(R)-10(end) - 10(er)11(i) - 21(ng) - 10() - 3(R)2(ul) - 21(e)]TJ \n" +  //TJ
-                "0 Tc(s)Tj \n" +                                    //   Tj
-                "8.497 0 Td \n" +                                   //   Td
-                "()Tj \n" +                                         //   Tj
-                "- 48.803 - 71.082 Td \n" +                         //   Td
+                "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n" +      //3. Tm => 9.96, 0, 0, 9.96, 72.024, 745.92
+                "[(E) - 1(C) - 7(M)]TJ \n" +                        //4. TJ => "ECM"
+                "0 Tc 2.241 0 Td \n" +                              //5. Td => 2.241, 0 
+                "(A)Tj \n" +                                        //6. Tj => "A"
+                "0.71 0 Td \n" +                                    //7. Td => 0.71 0
+                "(-)Tj \n" +                                        //8. Tj => "-"
+                "0.027 Tc 0.482 0 Td \n" +                          //9. Td => 0.482 0
+                "(38)Tj \n" +                                       //10.Tj => "38"
+                "0 Tc 1.313 0 Td \n" +                              //   Td => 1.313 0
+                "(8)Tj \n" +                                        //   Tj => "8"
+                "0.651 0 Td \n" +                                   //   Td => 0.651 0
+                "()Tj \n" +                                         //   Tj =>
+                "32.824 0 Td \n" +                                  //   Td => 32.824 0
+                "(1)Tj \n" +                                        //   Tj => "1"
+                "0.663 0 Td \n" +                                   //   Td => 0.663 0
+                "(8)Tj \n" +                                        //   Tj => "8"
+                "0.663 0 Td \n" +                                   //   Td => 0.663 0
+                "(.)Tj \n" +                                        //   Tj => "."
+                "0.386 0 Td \n" +                                   //   Td => 0.386 0 
+                "()Tj \n" +                                         //   Tj => 
+                "0.018 Tc 0.374 0 Td \n" +                          //   Td => 0.374 0
+                "9.96 0 0 9.96 114.14 539.86 Tm  [(R)-10(end) - 10(er)11(i) - 21(ng) - 10() - 3(R)2(ul) - 21(e)]TJ \n" +  //TJ => "Rendering Rule"
+                "0 Tc(s)Tj \n" +                                    //   Tj "s"
+                "8.497 0 Td \n" +                                   //   Td => 8.497 0
+                "()Tj \n" +                                         //   Tj =>
+                "- 48.803 - 71.082 Td \n" +                         //   Td => -48.803 -71.082
                 " ()Tj \n" +                                        //   Tj
-                "19.147 0 Td \n" +                                  //   Td
+                "19.147 0 Td \n" +                                  //   Td => 19.147 0
                 "()Tj \n" +                                         //   Tj
                 "ET  0.004 Tc 0.349 0 Td \n" +                    //     ET Td
 
-                "     [(F)1(i) - 11(r)9(s)7(t)7(E)9(d)1(i) - 11(t)12(i) - 11(o)]TJ \n" +                                    //TJ
-                "0 Tc 5.374 0 Td \n" +                              //   Td
-                "(n)Tj \n" +                                        //   Tj
-                "0.639 0 Td \n" +                                   //   Td
-                "(,)Tj \n" +                                        //   Tj
-                "0.361 0 Td \n" +                                   //   Td
+                "     [(F)1(i) - 11(r)9(s)7(t)7(E)9(d)1(i) - 11(t)12(i) - 11(o)]TJ \n" + //TJ => FirstEditio
+                "0 Tc 5.374 0 Td \n" +                              //   Td => 5.374 0
+                "(n)Tj \n" +                                        //   Tj => "n"
+                "0.639 0 Td \n" +                                   //   Td => 0.639 0
+                "(,)Tj \n" +                                        //   Tj => ","
+                "0.361 0 Td \n" +                                   //   Td => 0.361 0
                 "()Tj \n" +                                         //   Tj
-                "0.003 Tc 0.349 0 Td \n" +                          //   Td
-                "69.504 537.82 159.866 24.24 re  [(Ju)-3(n) - 2(e)9()6(2)1(0)1(0)]TJ \n" +                                //TJ
-                "0 Tc(9)Tj \n" +                                    //   Tj
-                "5.243 0 Td \n" +                                   //   Td
+                "0.003 Tc 0.349 0 Td \n" +                          //   Td => 0.349 0
+                "69.504 537.82 159.866 24.24 re  [(Ju)-3(n) - 2(e)9()6(2)1(0)1(0)]TJ \n" +  //TJ => June 200
+                "0 Tc(9)Tj \n" +                                    //   Tj => "9"
+                "5.243 0 Td \n" +                                   //   Td => 5.243 0
                 "()Tj \n" +                                         //   Tj
-                "0.003 Tc 15.425 0 Td \n" +                         //   Td
-                "[(2)1(4)]TJ \n" +                                  //   TJ
+                "0.003 Tc 15.425 0 Td \n" +                         //   Td => 15.425 0
+                "[(2)1(4)]TJ \n" +                                  //   TJ => 24
 
                 "BT 0 Tc(7)Tj \n" +                                 //   BT Tj
-                "1.916 0 Td \n" +                                   //   Td
+                "1.916 0 Td \n" +                                   //   Td => 1.916 0
                 "()Tj \n" +                                         //   Tj
                 "ET \n";                                            //   ET
+
+
+            SKPaint paint = new SKPaint();
+            paint.Style = SKPaintStyle.Stroke;
+            paint.Color = new SKColor(0, 255, 0);
+            paint.StrokeWidth = 0;
+            SKPoint position = new SKPoint((float)72.024, page_height - (float)745.92);
+
+            canvas.DrawText("ECM", position, paint);
+
+            position.X = position.X + (float)2.241*10;
+            canvas.DrawText("A", position, paint);
 
             string[] scn_array = get_scn(stream_instruction_new);
             Console.WriteLine("===========scn_array=============");
@@ -792,6 +807,9 @@ namespace PDF
                 Console.WriteLine(scn_array[i]);
             }
             textOperators text_operators = new textOperators();
+
+
+
             string[] scn_operations = get_operation(scn_array[1]);
             for (int i = 0; i < scn_operations.Length; i++)
             {
@@ -810,13 +828,43 @@ namespace PDF
                 }
                 if (text_single_operatorion.Contains("Td"))
                 {
+                    if (text_single_operatorion.Contains("Tc"))
+                    {
+                        text_single_operatorion = text_single_operatorion.Substring(text_single_operatorion.IndexOf("Tc") + "Tc".Length);
+
+                    }
+                    text_single_operatorion = clean_front_empty_space(text_single_operatorion);
                     text_operators.Tm = text_single_operatorion;
+
+
                     Console.WriteLine("Td= " + scn_operations[i]);
+                    Console.WriteLine("Td(clean)= " + text_single_operatorion);
+
+                    if (!text_single_operatorion.Contains("-"))
+                    {
+                        float x = float.Parse(text_single_operatorion.Split(" ")[0]);
+                        float y = float.Parse(text_single_operatorion.Split(" ")[1]);
+
+                        x = position.X + x*10;
+                        y = position.Y + y*10;
+
+                        position = new SKPoint(x, y);
+
+                    }
                 }
+
                 if (text_single_operatorion.Contains("Tj"))
                 {
                     text_operators.Tm = text_single_operatorion;
                     Console.WriteLine("Tj= " + scn_operations[i]);
+                    int start_text = text_single_operatorion.IndexOf("(")+1;
+                    int end_text = text_single_operatorion.IndexOf(")");
+                    Console.WriteLine(start_text);
+                    Console.WriteLine(end_text);
+                    string text_to_print = text_single_operatorion.Substring( start_text, end_text-start_text);
+                    Console.WriteLine(text_to_print);
+
+                    canvas.DrawText(text_to_print, position, paint);
                 }
                 if (text_single_operatorion.Contains("TJ"))
                 {
@@ -884,16 +932,26 @@ namespace PDF
             //AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
             //text_view.SetText(text.ToCharArray(), 0, text.Length);
 
-            SKPaint paint = new SKPaint();
-            paint.Style = SKPaintStyle.Stroke;
-            paint.Color = new SKColor(0, 255, 0);
-            paint.StrokeWidth = 0;
 
-            SKPoint position = new SKPoint(100,100);
+
+            //SKPoint position = new SKPoint(100,100);
 
             //canvas.DrawRect(0, 0, 794, 1123, paint);
 
-            canvas.DrawText("Happy everyday!", position, paint);
+            //canvas.DrawText("Happy everyday!", position, paint);
+
+
+            position = new SKPoint(100, 200);
+
+            //canvas.DrawRect(0, 0, 794, 1123, paint);
+
+            canvas.DrawText("Happy earth!", position, paint);
+
+            paint.Style = SKPaintStyle.Stroke;
+            paint.Color = new SKColor(0, 0, 0);
+            paint.StrokeWidth = 0;
+            //paint.Shader = image_shader;
+            canvas.DrawRect(0, 0, page_width, page_height, paint);
 
 
             canvas.Flush();
