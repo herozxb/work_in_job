@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace PDF
 {
@@ -642,7 +643,7 @@ namespace PDF
 
 
 
-
+            /*
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
             Stream stream = assets.Open("sample_2.pdf");
@@ -743,7 +744,7 @@ namespace PDF
             //“Paint” the text onto the page(Tj).
             //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
 
-
+            /*
 
             string stream_instruction_new =
 
@@ -802,7 +803,9 @@ namespace PDF
                 "1.916 0 Td \n" +                                   //   Td => 1.916 0
                 "()Tj \n" +                                         //   Tj
                 "ET \n";                                            //   ET
+            //*/
 
+            
             string start_page =
                 "BT \n" +
                 "/ CS0 cs 0 0 0  scn \n" +
@@ -930,30 +933,79 @@ namespace PDF
             paint.Color = new SKColor(0, 255, 0);
             paint.StrokeWidth = 0;
 
-            /*
-            string Tx_line = "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n";
+            float page_width = (float)612.0;
+            float page_height = (float)792.0;
 
-            Tm Tm = make_tm(Tx_line);
+            
+            string line = "0.021 Tc 48 0 0 48 194.3 623.74 Tm";
+            Tm Tm = make_tm(line);
+            SKPoint position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
 
 
-            Tx_line = "[(E) - 1(C) - 7(M)]TJ \n";
+            line = "[(O)1(pen)1()1(XM)2(L)]TJ \n";
+            string TJ_content = make_TJ(line);
 
-            string TJ_content = make_TJ(Tx_line);
+            Console.WriteLine("===========position[OpenXML]============");
+            Console.WriteLine(position.X);
+            Console.WriteLine(position.Y);
 
-           
-            SKPoint position = new SKPoint( Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
+
             canvas.DrawText(TJ_content, position, paint);
 
-            Tx_line = "0 Tc 2.241 0 Td \n";
-
-            Td Td = make_td(Tx_line);
+            line = "0 Tc 5.78 0 Td \n";
+            Td Td = make_td(line);
 
             position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
-            position.Y = position.Y + (float)(Td.td_y ) * Tm.Tm_matrix.ScaleY;
-            canvas.DrawText("A", position, paint);
+            position.Y = position.Y + (float)(Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+            Console.WriteLine("===========position[null]============");
+            Console.WriteLine(position.X);
+            Console.WriteLine(position.Y);
+
+            line = "()Tj \n";
+            string Tj_content = make_Tj(line);
+            canvas.DrawText(Tj_content, position, paint);
+
+            line = "0.02 Tc - 4.572 - 1.215 Td \n";
+            Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(-Td.td_y ) * Tm.Tm_matrix.ScaleY;
+
+            Console.WriteLine("===========position[Paper]============");
+            Console.WriteLine(position.X);
+            Console.WriteLine(position.Y);
+
+            line = "  [(P)1(a)1(p) - 3(e) - 1(r)]TJ \n";
+            TJ_content = make_TJ(line);
+            canvas.DrawText(TJ_content, position, paint);
+
+            line = "0.02 Tc - 2.066 - 1.216 Td \n";
+            Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+            line = "  [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n";
+            TJ_content = make_TJ(line);
+            canvas.DrawText(TJ_content, position, paint);
+
+            line = "0 Tc 6.76 0 Td \n";
+
+            Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+            line = "(n)Tj \n";
+            Tj_content = make_Tj(line);
+            canvas.DrawText(Tj_content, position, paint);
+
             //*/
 
-            string[] scn_array = get_scn(output_result);
+            /*
+            string[] scn_array = get_scn(start_page);
+
             Console.WriteLine("===========scn_array=============");
             for (int i = 0; i < scn_array.Length; i++)
             {
@@ -962,8 +1014,7 @@ namespace PDF
             textOperators text_operators = new textOperators();
             string[] scn_operations = get_operation(scn_array[3]);
 
-            float page_width = (float)612.0;
-            float page_height = (float)792.0;
+
 
 
 
@@ -1060,7 +1111,7 @@ namespace PDF
                 }
 
                 position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
-                position.Y = position.Y + (float)(Td.td_y) * Tm.Tm_matrix.ScaleY;
+                position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
                 Console.WriteLine("position X= " + position.X.ToString());
                 Console.WriteLine("position Y= " + position.Y.ToString());
 
@@ -1114,7 +1165,7 @@ namespace PDF
                     text_operators.Tm = text_single_operatorion;
                 }
             }
-            
+
             string text = "";                                
             visit_tree_node(complete_pages, ref text);
             AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
@@ -1182,8 +1233,8 @@ namespace PDF
 
                 tm_matrix.ScaleX = float.Parse(tm.Split(" ")[0]);
                 tm_matrix.SkewX = float.Parse(tm.Split(" ")[1]);
-                tm_matrix.ScaleY = float.Parse(tm.Split(" ")[2]);
-                tm_matrix.SkewY = float.Parse(tm.Split(" ")[3]);
+                tm_matrix.SkewY = float.Parse(tm.Split(" ")[2]);
+                tm_matrix.ScaleY = float.Parse(tm.Split(" ")[3]);
                 tm_matrix.TransX = float.Parse(tm.Split(" ")[4]);
                 tm_matrix.TransY = float.Parse(tm.Split(" ")[5]);
 
@@ -1247,27 +1298,79 @@ namespace PDF
             return TJ_text;
         }
 
+        public string make_Tj(string content)
+        {
+            int start_text = content.IndexOf("(") + 1;
+            int end_text = content.IndexOf(")");
+            //Console.WriteLine(start_text);
+            //Console.WriteLine(end_text);
+
+            if (content.Contains("<"))
+                return "";
+
+            string Tj_content = content.Substring(start_text, end_text - start_text);
+            Console.WriteLine(Tj_content);
+
+            return Tj_content;
+        }
+
         public Td make_td(string content)
         {
             Td Td = new Td();
-
+            Console.WriteLine("======make_td========");
+            Console.WriteLine(content);
             if (content.Contains("Tc"))
             {
-                string tc = content.Split("Tc")[0];
+                string tc_content = content.Split("Tc")[0];
                 string td_content = content.Split("Tc")[1];
                 td_content = clean_front_empty_space(td_content);
 
                 Console.WriteLine("================tc================");
-                Console.WriteLine(tc);
-                Td.Tc = float.Parse(tc);
-                Td.td_x = float.Parse(td_content.Split(" ")[0]);
-                Td.td_y = float.Parse(td_content.Split(" ")[1]);
+                Console.WriteLine(td_content);
+
+                //td_content = td_content.Replace(" ", ""); 
+                string td_content_clean = "";
+                int index = 0;
+                while (index<td_content.Length)
+                {
+                    if (td_content[index] == '-')
+                    {
+                        td_content_clean = td_content_clean + td_content[index];
+                        index++;
+                        while (td_content[index] == ' ')
+                        {
+                            index++;
+                        }
+
+                    }
+                    td_content_clean = td_content_clean + td_content[index];
+                    index++;
+                }
+
+                var matches = Regex.Matches(td_content_clean, @"-?[0-9]*\.?[0-9]+");
+
+                Td.Tc = float.Parse(tc_content);
+                Td.td_x = float.Parse(matches[0].Value);
+                Td.td_y = float.Parse(matches[1].Value);
+                Console.WriteLine(Td.td_x);
+                Console.WriteLine(Td.td_y);
             }
             else
             {
-                content = clean_front_empty_space(content);
-                Td.td_x = float.Parse(content.Split(" ")[0]);
-                Td.td_y = float.Parse(content.Split(" ")[1]);
+                if (!content.Contains("-"))
+                {
+                    content = clean_front_empty_space(content);
+                    Td.td_x = float.Parse(content.Split(" ")[0]);
+                    Td.td_y = float.Parse(content.Split(" ")[1]);
+                }
+                else
+                {
+                    content = content.Replace(" ", "");
+                    var matches = Regex.Matches(content, @"-?[0-9]*\.?[0-9]+");
+                    Td.Tc = float.Parse("0");
+                    Td.td_x = float.Parse(matches[0].Value);
+                    Td.td_y = float.Parse(matches[1].Value);
+                }
 
             }
 
