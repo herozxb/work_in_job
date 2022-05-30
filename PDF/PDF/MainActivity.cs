@@ -45,13 +45,26 @@ namespace PDF
     }
 
 
+    public class Tm
+    {
+        public SKMatrix Tm_matrix = new SKMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1);
+        public float Tc = 0;
+    }
+
+    public class Td
+    {
+        public float td_x = 0;
+        public float td_y = 0;
+        public float Tc = 0;
+    }
+
+
     public class textOperators
     {
         public string scn;
         public string Tf;
-        public string Tm;
-        public SKMatrix Tm_matrix;
-        public string Td;
+        public Tm Tm;
+        public Td Td;
         public string Tj;
         public string TJ;
 
@@ -342,12 +355,12 @@ namespace PDF
             {
 
                 PDFPage pdf_page = (PDFPage)PDFObject.Create(PDFStream, References, object_index);
-                pages_tree_node.page_tree_leaf_node= pdf_page;
+                pages_tree_node.page_tree_leaf_node = pdf_page;
             }
             return pages_tree_node;
         }
 
-        public PageTreeLeafNode  make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
+        public PageTreeLeafNode make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
         {
             string content = References.content;
             List<string> xref = References.xref;
@@ -466,7 +479,7 @@ namespace PDF
             switch (Type)
             {
                 case "/Catalog":
-                    { 
+                    {
                         int RootIndex = ObjectIndex;
                         return new PDFCatalog(PDFStream, References, RootIndex);
                     }
@@ -517,11 +530,11 @@ namespace PDF
             pages = References.clean_front_empty_space(pages);
 
             this.Type = type;
-            if(outlines.Contains("/Outlines"))
+            if (outlines.Contains("/Outlines"))
             {
                 this.OutlinesIndex = int.Parse(outlines.Split(" ")[0]);
             }
-            
+
             string pages_index = pages.Split(" ")[0];
             this.PagesIndex = int.Parse(pages_index);
 
@@ -628,8 +641,8 @@ namespace PDF
             //*/
 
 
-            /*
-            
+
+
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
             Stream stream = assets.Open("sample_2.pdf");
@@ -678,7 +691,7 @@ namespace PDF
 
             //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
 
-            string output_result = read_content( memory_stream, content, xref, "3024");
+            string output_result = read_content(memory_stream, content, xref, "6942");
 
             Console.WriteLine("==========output_result[start]===========");
             Console.WriteLine(output_result);
@@ -730,8 +743,7 @@ namespace PDF
             //“Paint” the text onto the page(Tj).
             //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
 
-            float page_width = (float)595.32;
-            float page_height = (float)842.04;
+
 
             string stream_instruction_new =
 
@@ -768,7 +780,8 @@ namespace PDF
                 " ()Tj \n" +                                        //   Tj
                 "19.147 0 Td \n" +                                  //   Td => 19.147 0
                 "()Tj \n" +                                         //   Tj
-                "ET  0.004 Tc 0.349 0 Td \n" +                    //     ET Td
+                "ET \n" +                                           //   ET
+                " 0.004 Tc 0.349 0 Td \n" +                         //   Td
 
                 "     [(F)1(i) - 11(r)9(s)7(t)7(E)9(d)1(i) - 11(t)12(i) - 11(o)]TJ \n" + //TJ => FirstEditio
                 "0 Tc 5.374 0 Td \n" +                              //   Td => 5.374 0
@@ -790,153 +803,267 @@ namespace PDF
                 "()Tj \n" +                                         //   Tj
                 "ET \n";                                            //   ET
 
+            string start_page =
+                "BT \n" +
+                "/ CS0 cs 0 0 0  scn \n" +
+                " / GS0 gs \n" +
+                "  / TT0 1 Tf \n" +
+                "9.96 0 0 9.96 72.024 745.92 Tm \n" +
+                "()Tj \n" +
+                "0.6 0.6 0.6  scn \n" +
+                "24.4 - 71.082 Td \n" +
+                " ()Tj \n" +
+                "0 0 0  scn \n" +
+                "/ TT1 1 Tf \n" +
+                "0.021 Tc 48 0 0 48 194.3 623.74 Tm \n" +
+                "[(O)1(pen)1()1(XM)2(L)]TJ \n" +
+                "0 Tc 5.78 0 Td \n" +
+                "()Tj \n" +
+                "0.02 Tc - 4.572 - 1.215 Td \n" +
+                "  [(P)1(a)1(p) - 3(e) - 1(r)]TJ \n" +
+                "0 Tc()Tj \n" +
+                "0.02 Tc - 2.066 - 1.216 Td \n" +
+                "  [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n" +
+                "0 Tc 6.76 0 Td \n" +
+                "(n)Tj \n" +
+                "0.734 0 Td \n" +
+                "()Tj \n" +
+                "ET \n" +
+                "106.58 496.39 452.96 0.481 re \n" +
+                "f \n" +
+                "BT \n" +
+                "/ TT0 1 Tf \n" +
+                "14.04 0 0 14.04 315.05 479.47 Tm \n" +
+                "()Tj \n" +
+                "- 11.045 - 1.419 Td \n" +
+                " [(O)1(p) - 1(e) - 2(n)1(X)10(P) - 4(S)2(S)9(p) - 1(e) - 2(c)8(i) - 8(f)10(i)1(ca)3(t)1(i) - 8(on)1()2(a)11(n)1(d) - 1()2(R)3(e) - 2(f)10(e) - 2(r)8(e) - 2(n)1(ce) - 2()10(G) - 3(u)9(i) - 8(d)]TJ \n" +
+                "21.487 0 Td \n" +
+                "(e)Tj \n" +
+                "0.593 0 Td \n" +
+                "()Tj \n" +
+                "- 11.036 - 1.427 Td \n" +
+                " ()Tj \n" +
+                "0 - 1.427 TD \n" +
+                " ()Tj \n" +
+                "0 - 1.427 TD \n" +
+                " ()Tj \n" +
+                "- 2.983 - 1.427 Td \n" +
+                "  (F)Tj \n" +
+                "0.008 Tc 0.573 0 Td \n" +
+                "[(ir)8(s)8(t)9()18(E)8(d)16(it)17(io)]TJ \n" +
+                "0 Tc 4.769 0 Td \n" +
+                "(n)Tj \n" +
+                "0.625 0 Td \n" +
+                "()Tj \n" +
+                "- 2.984 - 1.419 Td \n" +
+                " ()Tj \n" +
+                "- 0.002 Tc - 2.598 - 1.429 Td \n" +
+                "   [(Ju) - 1(n)]TJ \n" +
+                "0 Tc 1.718 0 Td \n" +
+                "(e)Tj \n" +
+                "0.598 0 Td \n" +
+                "()Tj \n" +
+                "- 0.003 Tc 0.35 0 Td \n" +
+                "[(2)1(0)1(0)]TJ \n" +
+                "0 Tc 1.897 0 Td \n" +
+                "(9)Tj \n" +
+                "0.634 0 Td \n" +
+                "()Tj \n" +
+                "- 2.6 - 1.427 Td \n" +
+                " ()Tj \n" +
+                "T * \n" +
+                "( )Tj \n" +
+                "9.96 0 0 9.96 192.86 278.57 Tm \n" +
+                "(\\251)Tj \n" +
+                "()Tj \n" +
+                "0.003 Tc 1.349 0 Td \n" +
+                "[(2)1(00)]TJ \n" +
+                "0 Tc 1.916 0 Td \n" +
+                "(9)Tj \n" +
+                "0.642 0 Td \n" +
+                "(,)Tj \n" +
+                "0.361 0 Td \n" +
+                "()Tj \n" +
+                "- 0.005 Tc 0.361 0 Td \n" +
+                "[(E)1(c) - 2(m) - 8(a) - 18() - 14(I)6(n) - 11(t) - 9(e) - 11(rn) - 11(a) - 6(t) - 9(i) - 8(on) - 11(a) - 6(l) - 20(.) - 2() - 2(A) - 8(l) - 8(l) - 20() - 2(r)12(i) - 20(g) - 8(h) - 11(t) - 9(s) - 2() - 2(re)1(s) - 14(e)1(r) - 12(v) - 3(e)1(d)]TJ \n" +
+                "0 Tc 19.542 0 Td \n" +
+                "(.)Tj \n" +
+                "0.363 0 Td \n" +
+                "()Tj \n" +
+                "- 36.667 - 2.12 Td \n" +
+                " ()Tj \n" +
+                "0 - 2.133 TD \n" +
+                " ()Tj \n" +
+                "0 - 2.12 TD \n" +
+                " ()Tj \n" +
+                "0.006 Tc 7.578 - 2.12 Td \n" +
+                " [(T)8(h)1(i) - 9(s)9()9(d)2(o)11(c)9(u)1(m)3(e)12(n)1(t)]TJ \n" +
+                "0 Tc 7.398 0 Td \n" +
+                "()Tj \n" +
+                "0.001 Tc[(wa) - 12(s)]TJ \n" +
+                "0 Tc 2.304 0 Td \n" +
+                "()Tj \n" +
+                "0.004 Tc 0.349 0 Td \n" +
+                "[(p)1(r) - 3(o) - 3(d)1(u) - 2(c)7(e)10(d)1()7(b)1(y)]TJ \n" +
+                "0 Tc 6.241 0 Td \n" +
+                "()Tj \n" +
+                "- 0.005 Tc 0.361 0 Td \n" +
+                "[(E) - 11(c) - 2(m) - 8(a) - 6() - 2(T) - 16(e)1(c) - 2(h) - 11(n) - 10(i) - 20(c) - 2(a) - 6(l) - 20() - 2(C) - 6(om) - 8(m) - 8(i) - 20(t) - 9(t) - 9(e)1(e)]TJ \n" +
+                "0 Tc 13.663 0 Td \n" +
+                "()Tj \n" +
+                "- 0.002 Tc 0.351 0 Td \n" +
+                "[(TC) - 3(4) - 4(6)]TJ \n" +
+                "0 Tc 2.59 0 Td \n" +
+                "(.)Tj \n" +
+                "ET \n" +
+                "/ CS0 CS 0 0 0  SCN \n" +
+                " / GS1 gs \n" +
+                "  q 1 0 0 1 191.96 720 cm \n" +
+                "0 0 m \n" +
+                "1.92 0 l \n" +
+                "S \n" +
+                "Q \n" +
+                "scn\n";
 
             SKPaint paint = new SKPaint();
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 255, 0);
             paint.StrokeWidth = 0;
-            
-
-            string Tm_line = "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n";
-
-            string tc = Tm_line.Split("Tc")[0];
-            string tm = Tm_line.Split("Tc")[1];
-            tm = clean_front_empty_space(tm);
-
-            float Tc = float.Parse(tc);
-            SKMatrix tm_matrix = new SKMatrix();
-            tm_matrix.ScaleX = float.Parse(tm.Split(" ")[0]);
-            tm_matrix.SkewX = float.Parse(tm.Split(" ")[1]);
-            tm_matrix.ScaleY = float.Parse(tm.Split(" ")[2]);
-            tm_matrix.SkewY = float.Parse(tm.Split(" ")[3]);
-            tm_matrix.TransX = float.Parse(tm.Split(" ")[4]);
-            tm_matrix.TransY = float.Parse(tm.Split(" ")[5]);
-
-
-            Tm_line = "[(E) - 1(C) - 7(M)]TJ \n";
-
-            String TJ_text = "";
-            int index = 0;
-            while (index < Tm_line.Length)
-            {
-                if (Tm_line[index] == '(')
-                {
-                    index++;
-                    TJ_text = TJ_text + Tm_line[index];
-                    while (true)
-                    {
-                        if (Tm_line[index] == ')')
-                        {
-                            break;
-                        }
-
-                        TJ_text = TJ_text + Tm_line[index];
-                    }
-                }
-                index++;
-            }
-
-            Console.WriteLine("=============TJ_text==============");
-            Console.WriteLine(TJ_text);
 
             /*
-            SKPoint position = new SKPoint( tm_matrix.TransX, page_height - tm_matrix.TransY);
-            //canvas.DrawText("ECM", position, paint);
+            string Tx_line = "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n";
 
-            Tm_line = "0 Tc 2.241 0 Td \n";
+            Tm Tm = make_tm(Tx_line);
 
-            float td_x = 0;
-            float td_y = 0;
 
-            if (Tm_line.Contains("Tc"))
-            {
-                tc = Tm_line.Split("Tc")[0];
-                string td = Tm_line.Split("Tc")[1];
-                td = clean_front_empty_space(td);
-            }
-            else
-            {
-                Tm_line = clean_front_empty_space(Tm_line);
-                td_x = float.Parse(Tm_line.Split(" ")[0]);
-                td_y = float.Parse(Tm_line.Split(" ")[1]);
+            Tx_line = "[(E) - 1(C) - 7(M)]TJ \n";
 
-            }
+            string TJ_content = make_TJ(Tx_line);
 
-            //position.X = position.X + (float)(td_x + Tc) * tm_matrix.ScaleX;
-            //position.Y = position.Y + (float)(td_y ) * tm_matrix.ScaleY;
-            //canvas.DrawText("A", position, paint);
+           
+            SKPoint position = new SKPoint( Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
+            canvas.DrawText(TJ_content, position, paint);
 
-            string[] scn_array = get_scn(stream_instruction_new);
+            Tx_line = "0 Tc 2.241 0 Td \n";
+
+            Td Td = make_td(Tx_line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(Td.td_y ) * Tm.Tm_matrix.ScaleY;
+            canvas.DrawText("A", position, paint);
+            //*/
+
+            string[] scn_array = get_scn(output_result);
             Console.WriteLine("===========scn_array=============");
             for (int i = 0; i < scn_array.Length; i++)
             {
                 Console.WriteLine(scn_array[i]);
             }
             textOperators text_operators = new textOperators();
+            string[] scn_operations = get_operation(scn_array[3]);
+
+            float page_width = (float)612.0;
+            float page_height = (float)792.0;
 
 
 
-            string[] scn_operations = get_operation(scn_array[1]);
+            Tm Tm = new Tm();
+            Td Td = new Td();
+            string TJ_content = "";
+            SKPoint position = new SKPoint(0, 0);
             for (int i = 0; i < scn_operations.Length; i++)
             {
                 Console.WriteLine("============[one]============");
                 //Console.WriteLine(scn_operations[i]);
                 string text_single_operatorion = scn_operations[i];
+
                 if (text_single_operatorion.Contains("Tf"))
                 {
                     text_operators.Tf = text_single_operatorion;
-                    Console.WriteLine("Tf= "+scn_operations[i]);
+                    Console.WriteLine("Tf= " + scn_operations[i]);
                 }
                 if (text_single_operatorion.Contains("Tm"))
                 {
-                    text_operators.Tm = text_single_operatorion;
+                    //text_operators.Tm = text_single_operatorion;
                     Console.WriteLine("Tm= " + scn_operations[i]);
+
+                    Tm = make_tm(text_single_operatorion);
+
+                    position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
+
+                    Console.WriteLine("Tm X= " + Tm.Tm_matrix.TransX);
+                    Console.WriteLine("Tm Y= " + Tm.Tm_matrix.TransY);
+
+
+
                 }
                 if (text_single_operatorion.Contains("Td"))
                 {
-                    if (text_single_operatorion.Contains("Tc"))
-                    {
-                        text_single_operatorion = text_single_operatorion.Substring(text_single_operatorion.IndexOf("Tc") + "Tc".Length);
+                    //if (text_single_operatorion.Contains("Tc"))
+                    //{
+                    //   text_single_operatorion = text_single_operatorion.Substring(text_single_operatorion.IndexOf("Tc") + "Tc".Length);
 
-                    }
-                    text_single_operatorion = clean_front_empty_space(text_single_operatorion);
-                    text_operators.Tm = text_single_operatorion;
+                    //}
+
+                    //text_single_operatorion = clean_front_empty_space(text_single_operatorion);
+                    //text_operators.Tm = text_single_operatorion;
 
 
-                    Console.WriteLine("Td= " + scn_operations[i]);
-                    Console.WriteLine("Td(clean)= " + text_single_operatorion);
+                    Console.WriteLine("Td= " + text_single_operatorion);
+                    //Console.WriteLine("Td(clean)= " + text_single_operatorion);
 
                     if (!text_single_operatorion.Contains("-"))
                     {
-                        float x = float.Parse(text_single_operatorion.Split(" ")[0]);
-                        float y = float.Parse(text_single_operatorion.Split(" ")[1]);
-
-                        x = position.X + x*10;
-                        y = position.Y + y*10;
-
-                        position = new SKPoint(x, y);
-
+                        Td = make_td(text_single_operatorion);
                     }
+
+                    Console.WriteLine("Tm X= " + Td.td_x);
+                    Console.WriteLine("Tm Y= " + Td.td_y);
+                    Console.WriteLine("Tm Tc= " + Td.Tc);
+
                 }
 
                 if (text_single_operatorion.Contains("Tj"))
                 {
-                    text_operators.Tm = text_single_operatorion;
-                    Console.WriteLine("Tj= " + scn_operations[i]);
-                    int start_text = text_single_operatorion.IndexOf("(")+1;
-                    int end_text = text_single_operatorion.IndexOf(")");
-                    Console.WriteLine(start_text);
-                    Console.WriteLine(end_text);
-                    string text_to_print = text_single_operatorion.Substring( start_text, end_text-start_text);
-                    Console.WriteLine(text_to_print);
+                    //text_operators.Tm = text_single_operatorion;
+                    Console.WriteLine("Tj= " + text_single_operatorion);
 
-                    canvas.DrawText(text_to_print, position, paint);
+                    int start_text = text_single_operatorion.IndexOf("(") + 1;
+                    int end_text = text_single_operatorion.IndexOf(")");
+                    //Console.WriteLine(start_text);
+                    //Console.WriteLine(end_text);
+
+                    if (text_single_operatorion.Contains("<"))
+                        continue;
+
+                    string Tj_content = text_single_operatorion.Substring(start_text, end_text - start_text);
+                    Console.WriteLine(Tj_content);
+
+                    canvas.DrawText(Tj_content, position, paint);
                 }
+
                 if (text_single_operatorion.Contains("TJ"))
                 {
-                    text_operators.Tm = text_single_operatorion;
-                    Console.WriteLine("TJ= " + scn_operations[i]);
+                    //text_operators.Tm = text_single_operatorion;
+
+                    TJ_content = make_TJ(text_single_operatorion);
+                    canvas.DrawText(TJ_content, position, paint);
+                    Console.WriteLine("TJ= " + TJ_content);
                 }
+
+                if (text_single_operatorion.Contains("ET"))
+                {
+                    text_operators.Tf = text_single_operatorion;
+                    Console.WriteLine("ET= " + text_single_operatorion);
+                    position.X = 0;
+                    position.Y = page_height;
+                }
+
+                position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+                position.Y = position.Y + (float)(Td.td_y) * Tm.Tm_matrix.ScaleY;
+                Console.WriteLine("position X= " + position.X.ToString());
+                Console.WriteLine("position Y= " + position.Y.ToString());
+
             }
             //*/
             /*
@@ -1037,6 +1164,118 @@ namespace PDF
             return stream;
         }
 
+
+        public Tm make_tm(string content)
+        {
+
+            Tm Tm = new Tm();
+
+            SKMatrix tm_matrix = new SKMatrix();
+
+
+            if (content.Contains("Tc"))
+            {
+
+                string tc = content.Split("Tc")[0];
+                string tm = content.Split("Tc")[1];
+                tm = clean_front_empty_space(tm);
+
+                tm_matrix.ScaleX = float.Parse(tm.Split(" ")[0]);
+                tm_matrix.SkewX = float.Parse(tm.Split(" ")[1]);
+                tm_matrix.ScaleY = float.Parse(tm.Split(" ")[2]);
+                tm_matrix.SkewY = float.Parse(tm.Split(" ")[3]);
+                tm_matrix.TransX = float.Parse(tm.Split(" ")[4]);
+                tm_matrix.TransY = float.Parse(tm.Split(" ")[5]);
+
+                Tm.Tm_matrix = tm_matrix;
+                Tm.Tc = float.Parse(tc);
+
+
+
+            }
+            else if (content.Contains("Tm"))
+            {
+                string tm = clean_front_empty_space(content);
+
+                tm_matrix.ScaleX = float.Parse(tm.Split(" ")[0]);
+                tm_matrix.SkewX = float.Parse(tm.Split(" ")[1]);
+                tm_matrix.ScaleY = float.Parse(tm.Split(" ")[2]);
+                tm_matrix.SkewY = float.Parse(tm.Split(" ")[3]);
+                tm_matrix.TransX = float.Parse(tm.Split(" ")[4]);
+                tm_matrix.TransY = float.Parse(tm.Split(" ")[5]);
+
+                Tm.Tm_matrix = tm_matrix;
+
+            }
+
+            return Tm;
+
+        }
+
+        public string make_TJ(string content)
+        {
+
+            String TJ_text = "";
+            int index = 0;
+            while (index < content.Length)
+            {
+                if (content[index] == '(')
+                {
+                    index++;
+                    if (content[index] == ')')
+                    {
+                        continue;
+                    }
+
+                    TJ_text = TJ_text + content[index];
+                    while (true)
+                    {
+
+                        index++;
+
+                        if (content[index] == ')')
+                        {
+                            break;
+                        }
+
+                        TJ_text = TJ_text + content[index];
+                    }
+                }
+                index++;
+            }
+
+            return TJ_text;
+        }
+
+        public Td make_td(string content)
+        {
+            Td Td = new Td();
+
+            if (content.Contains("Tc"))
+            {
+                string tc = content.Split("Tc")[0];
+                string td_content = content.Split("Tc")[1];
+                td_content = clean_front_empty_space(td_content);
+
+                Console.WriteLine("================tc================");
+                Console.WriteLine(tc);
+                Td.Tc = float.Parse(tc);
+                Td.td_x = float.Parse(td_content.Split(" ")[0]);
+                Td.td_y = float.Parse(td_content.Split(" ")[1]);
+            }
+            else
+            {
+                content = clean_front_empty_space(content);
+                Td.td_x = float.Parse(content.Split(" ")[0]);
+                Td.td_y = float.Parse(content.Split(" ")[1]);
+
+            }
+
+            return Td;
+
+        }
+
+        //*/
         public string[] get_scn(string stream_instruction)
         {
             string[] result;
@@ -1049,7 +1288,7 @@ namespace PDF
             }
 
             return result;
-        
+
         }
 
         string[] get_operation(string scn_block)
@@ -1071,7 +1310,7 @@ namespace PDF
                 result = result + content[entry_position];
                 entry_position++;
 
-                if (content[entry_position] == '\r'  || content[entry_position] == '/' || content[entry_position] == '\n')
+                if (content[entry_position] == '\r' || content[entry_position] == '/' || content[entry_position] == '\n')
                 {
                     break;
                 }
@@ -1240,7 +1479,7 @@ namespace PDF
 
                 result = result + content[entry_position];
                 entry_position++;
-                
+
 
             }
 
@@ -1432,7 +1671,7 @@ namespace PDF
             return result;
         }
 
-        public string read_content(MemoryStream memory_stream, string content, Dictionary<string,string> xref, string object_index)
+        public string read_content(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
         {
 
             int line_number = int.Parse(xref[object_index].Split(" ")[0]);
@@ -1453,18 +1692,18 @@ namespace PDF
                 int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
                 int stream_end = 0;
 
-                if (content[stream_start ] == '\n')
+                if (content[stream_start] == '\n')
                 {
                     stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
                     stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
                 }
-                else if(content[stream_start ] == '\r')
+                else if (content[stream_start] == '\r')
                 {
                     stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
                     stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
                 }
 
-                
+
                 int length_stream = stream_end - stream_start;
 
                 memory_stream.Position = stream_start;
@@ -1592,7 +1831,7 @@ namespace PDF
                     Console.WriteLine("================Kids[end]=====================");
                     if (kids_index.Replace(" ", "").Length > 0)
                     {
-                        pages.pages_tree_children_node_list.Add(make_pages(memory_stream,content, xref, kids_index));
+                        pages.pages_tree_children_node_list.Add(make_pages(memory_stream, content, xref, kids_index));
                     }
                 }
             }
