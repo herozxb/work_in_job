@@ -44,11 +44,13 @@ namespace PDF
         public string content;
     }
 
+
     public class textOperators
     {
         public string scn;
         public string Tf;
         public string Tm;
+        public SKMatrix Tm_matrix;
         public string Td;
         public string Tj;
         public string TJ;
@@ -793,12 +795,76 @@ namespace PDF
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 255, 0);
             paint.StrokeWidth = 0;
-            SKPoint position = new SKPoint((float)72.024, page_height - (float)745.92);
+            
 
-            canvas.DrawText("ECM", position, paint);
+            string Tm_line = "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n";
 
-            position.X = position.X + (float)2.241*10;
-            canvas.DrawText("A", position, paint);
+            string tc = Tm_line.Split("Tc")[0];
+            string tm = Tm_line.Split("Tc")[1];
+            tm = clean_front_empty_space(tm);
+
+            float Tc = float.Parse(tc);
+            SKMatrix tm_matrix = new SKMatrix();
+            tm_matrix.ScaleX = float.Parse(tm.Split(" ")[0]);
+            tm_matrix.SkewX = float.Parse(tm.Split(" ")[1]);
+            tm_matrix.ScaleY = float.Parse(tm.Split(" ")[2]);
+            tm_matrix.SkewY = float.Parse(tm.Split(" ")[3]);
+            tm_matrix.TransX = float.Parse(tm.Split(" ")[4]);
+            tm_matrix.TransY = float.Parse(tm.Split(" ")[5]);
+
+
+            Tm_line = "[(E) - 1(C) - 7(M)]TJ \n";
+
+            String TJ_text = "";
+            int index = 0;
+            while (index < Tm_line.Length)
+            {
+                if (Tm_line[index] == '(')
+                {
+                    index++;
+                    TJ_text = TJ_text + Tm_line[index];
+                    while (true)
+                    {
+                        if (Tm_line[index] == ')')
+                        {
+                            break;
+                        }
+
+                        TJ_text = TJ_text + Tm_line[index];
+                    }
+                }
+                index++;
+            }
+
+            Console.WriteLine("=============TJ_text==============");
+            Console.WriteLine(TJ_text);
+
+            /*
+            SKPoint position = new SKPoint( tm_matrix.TransX, page_height - tm_matrix.TransY);
+            //canvas.DrawText("ECM", position, paint);
+
+            Tm_line = "0 Tc 2.241 0 Td \n";
+
+            float td_x = 0;
+            float td_y = 0;
+
+            if (Tm_line.Contains("Tc"))
+            {
+                tc = Tm_line.Split("Tc")[0];
+                string td = Tm_line.Split("Tc")[1];
+                td = clean_front_empty_space(td);
+            }
+            else
+            {
+                Tm_line = clean_front_empty_space(Tm_line);
+                td_x = float.Parse(Tm_line.Split(" ")[0]);
+                td_y = float.Parse(Tm_line.Split(" ")[1]);
+
+            }
+
+            //position.X = position.X + (float)(td_x + Tc) * tm_matrix.ScaleX;
+            //position.Y = position.Y + (float)(td_y ) * tm_matrix.ScaleY;
+            //canvas.DrawText("A", position, paint);
 
             string[] scn_array = get_scn(stream_instruction_new);
             Console.WriteLine("===========scn_array=============");
@@ -872,7 +938,7 @@ namespace PDF
                     Console.WriteLine("TJ= " + scn_operations[i]);
                 }
             }
-
+            //*/
             /*
             string stream_instruction = "BT \n " +          //begin BT
                 "/CS0 cs 0 0 0  scn \n" +                   //1. scn
@@ -940,12 +1006,13 @@ namespace PDF
 
             //canvas.DrawText("Happy everyday!", position, paint);
 
-
+            /*
             position = new SKPoint(100, 200);
 
             //canvas.DrawRect(0, 0, 794, 1123, paint);
 
             canvas.DrawText("Happy earth!", position, paint);
+            //*/
 
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 0, 0);
