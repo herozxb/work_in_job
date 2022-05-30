@@ -626,7 +626,7 @@ namespace PDF
             //*/
 
 
-            
+            /*
             
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
@@ -785,7 +785,7 @@ namespace PDF
                 "()Tj \n" +                                         //   Tj
                 "ET \n";                                            //   ET
 
-            string[] scn_array = get_scn(output_result);
+            string[] scn_array = get_scn(stream_instruction_new);
             Console.WriteLine("===========scn_array=============");
             for (int i = 0; i < scn_array.Length; i++)
             {
@@ -879,6 +879,25 @@ namespace PDF
             AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
             text_view.SetText(text.ToCharArray(), 0, text.Length);
             //*/
+
+
+            //AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
+            //text_view.SetText(text.ToCharArray(), 0, text.Length);
+
+            SKPaint paint = new SKPaint();
+            paint.Style = SKPaintStyle.Stroke;
+            paint.Color = new SKColor(0, 255, 0);
+            paint.StrokeWidth = 0;
+
+            SKPoint position = new SKPoint(100,100);
+
+            //canvas.DrawRect(0, 0, 794, 1123, paint);
+
+            canvas.DrawText("Happy everyday!", position, paint);
+
+
+            canvas.Flush();
+            canvas.Restore();
 
 
         }
