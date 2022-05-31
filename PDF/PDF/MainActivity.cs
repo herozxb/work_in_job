@@ -945,13 +945,13 @@ namespace PDF
 
 
             line = "[(O)1(pen)1()1(XM)2(L)]TJ \n";
-            string TJ_content = make_TJ(line,ref position,paint,canvas,Tm);
+            string TJ_content = make_TJ(line, position,paint,canvas,Tm);
 
             Console.WriteLine("===========position[OpenXML]============");
             Console.WriteLine(position.X);
             Console.WriteLine(position.Y);
 
-            /*
+            
             //canvas.DrawText(TJ_content, position, paint);
 
             line = "0 Tc 5.78 0 Td \n";
@@ -979,7 +979,7 @@ namespace PDF
             Console.WriteLine(position.Y);
 
             line = "  [(P)1(a)1(p) - 3(e) - 1(r)]TJ \n";
-            TJ_content = make_TJ(line,ref position,paint,canvas,Tm);
+            TJ_content = make_TJ(line, position,paint,canvas,Tm);
             //canvas.DrawText(TJ_content, position, paint);
 
             line = "0.02 Tc - 2.066 - 1.216 Td \n";
@@ -989,7 +989,7 @@ namespace PDF
             position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
 
             line = "  [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n";
-            TJ_content = make_TJ(line,ref position,paint,canvas,Tm);
+            TJ_content = make_TJ(line, position,paint,canvas,Tm);
             //canvas.DrawText(TJ_content, position, paint);
 
             line = "0 Tc 6.76 0 Td \n";
@@ -1273,7 +1273,7 @@ namespace PDF
 
         }
 
-        public string make_TJ(string content, ref SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm)
+        public string make_TJ(string content,  SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm)
         {
             string[] TJ_array = content.Split("(");
 
