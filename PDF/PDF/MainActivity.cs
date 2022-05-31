@@ -643,7 +643,7 @@ namespace PDF
 
 
 
-            /*
+            
             var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
             Stream stream = assets.Open("sample_2.pdf");
@@ -1004,113 +1004,126 @@ namespace PDF
 
             //*/
 
-            
-            string[] scn_array = get_scn(start_page);
+            output_result.Replace("SCN","scn");
+
+
+            string[] scn_array = get_scn(output_result);
 
             Console.WriteLine("===========scn_array=============");
-            for (int i = 0; i < scn_array.Length; i++)
+            for (int scn_index = 0; scn_index < scn_array.Length; scn_index++)
             {
-                Console.WriteLine(scn_array[i]);
+                Console.WriteLine(scn_array[scn_index]);
+                textOperators text_operators = new textOperators();
+                string[] scn_operations = get_operation(scn_array[scn_index]);
+
+
+                Tm Tm = new Tm();
+                Td Td = new Td();
+                string TJ_content = "";
+                SKPoint position = new SKPoint(0, 0);
+                for (int i = 0; i < scn_operations.Length; i++)
+                {
+                    Console.WriteLine("============[one]============");
+                    Console.WriteLine(scn_operations[i]);
+                    string text_single_operatorion = scn_operations[i];
+
+                    if (text_single_operatorion.Contains("Tf"))
+                    {
+                        text_operators.Tf = text_single_operatorion;
+                        Console.WriteLine("Tf= " + scn_operations[i]);
+                    }
+                    if (text_single_operatorion.Contains("Tm"))
+                    {
+                        //text_operators.Tm = text_single_operatorion;
+                        Console.WriteLine("Tm= " + scn_operations[i]);
+
+                        Tm = make_tm(text_single_operatorion);
+
+                        paint.TextSize = 1 * Tm.Tm_matrix.ScaleX;
+
+                        position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
+
+                        Console.WriteLine("Tm X= " + Tm.Tm_matrix.TransX);
+                        Console.WriteLine("Tm Y= " + Tm.Tm_matrix.TransY);
+
+
+
+                    }
+                    if (text_single_operatorion.Contains("Td") || text_single_operatorion.Contains("TD"))
+                    {
+                        //if (text_single_operatorion.Contains("Tc"))
+                        //{
+                        //   text_single_operatorion = text_single_operatorion.Substring(text_single_operatorion.IndexOf("Tc") + "Tc".Length);
+
+                        //}
+
+                        //text_single_operatorion = clean_front_empty_space(text_single_operatorion);
+                        //text_operators.Tm = text_single_operatorion;
+
+
+                        Console.WriteLine("Td= " + text_single_operatorion);
+                        //Console.WriteLine("Td(clean)= " + text_single_operatorion);
+
+                        Td = make_td(text_single_operatorion);
+                        position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+                        position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+
+
+                        Console.WriteLine("Tm X= " + Td.td_x);
+                        Console.WriteLine("Tm Y= " + Td.td_y);
+                        Console.WriteLine("Tm Tc= " + Td.Tc);
+                        Console.WriteLine("Tm ScaleX= " + Tm.Tm_matrix.ScaleX);
+                        Console.WriteLine("Tm ScaleY= " + Tm.Tm_matrix.ScaleY);
+                        Console.WriteLine("position X= " + position.X.ToString());
+                        Console.WriteLine("position Y= " + position.Y.ToString());
+
+                    }
+
+                    if (text_single_operatorion.Contains("Tj"))
+                    {
+                        //text_operators.Tm = text_single_operatorion;
+                        Console.WriteLine("Tj= " + text_single_operatorion);
+                        string Tj_content = make_Tj(text_single_operatorion);
+
+                        canvas.DrawText(Tj_content, position, paint);
+                    }
+
+                    if (text_single_operatorion.Contains("TJ"))
+                    {
+                        //text_operators.Tm = text_single_operatorion;
+
+                        TJ_content = make_TJ(text_single_operatorion);
+                        canvas.DrawText(TJ_content, position, paint);
+                        Console.WriteLine("TJ= " + TJ_content);
+                    }
+
+                    if (text_single_operatorion.Contains("ET"))
+                    {
+                        text_operators.Tf = text_single_operatorion;
+                        Console.WriteLine("ET= " + text_single_operatorion);
+                        position.X = 0;
+                        position.Y = page_height;
+                    }
+
+
+
+                }
+
+
+
+
+
+
+
+
+
             }
-            textOperators text_operators = new textOperators();
-            string[] scn_operations = get_operation(scn_array[3]);
+            
+            
 
 
 
-
-
-            Tm Tm = new Tm();
-            Td Td = new Td();
-            string TJ_content = "";
-            SKPoint position = new SKPoint(0, 0);
-            for (int i = 0; i < scn_operations.Length; i++)
-            {
-                Console.WriteLine("============[one]============");
-                Console.WriteLine(scn_operations[i]);
-                string text_single_operatorion = scn_operations[i];
-
-                if (text_single_operatorion.Contains("Tf"))
-                {
-                    text_operators.Tf = text_single_operatorion;
-                    Console.WriteLine("Tf= " + scn_operations[i]);
-                }
-                if (text_single_operatorion.Contains("Tm"))
-                {
-                    //text_operators.Tm = text_single_operatorion;
-                    Console.WriteLine("Tm= " + scn_operations[i]);
-
-                    Tm = make_tm(text_single_operatorion);
-
-                    paint.TextSize = 1* Tm.Tm_matrix.ScaleX;
-
-                    position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
-
-                    Console.WriteLine("Tm X= " + Tm.Tm_matrix.TransX);
-                    Console.WriteLine("Tm Y= " + Tm.Tm_matrix.TransY);
-
-
-
-                }
-                if (text_single_operatorion.Contains("Td")|| text_single_operatorion.Contains("TD"))
-                {
-                    //if (text_single_operatorion.Contains("Tc"))
-                    //{
-                    //   text_single_operatorion = text_single_operatorion.Substring(text_single_operatorion.IndexOf("Tc") + "Tc".Length);
-
-                    //}
-
-                    //text_single_operatorion = clean_front_empty_space(text_single_operatorion);
-                    //text_operators.Tm = text_single_operatorion;
-
-
-                    Console.WriteLine("Td= " + text_single_operatorion);
-                    //Console.WriteLine("Td(clean)= " + text_single_operatorion);
-
-                    Td = make_td(text_single_operatorion);
-                    position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
-                    position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
-
-
-
-                    Console.WriteLine("Tm X= " + Td.td_x);
-                    Console.WriteLine("Tm Y= " + Td.td_y);
-                    Console.WriteLine("Tm Tc= " + Td.Tc);
-                    Console.WriteLine("Tm ScaleX= " + Tm.Tm_matrix.ScaleX);
-                    Console.WriteLine("Tm ScaleY= " + Tm.Tm_matrix.ScaleY);
-                    Console.WriteLine("position X= " + position.X.ToString());
-                    Console.WriteLine("position Y= " + position.Y.ToString());
-
-                }
-
-                if (text_single_operatorion.Contains("Tj"))
-                {
-                    //text_operators.Tm = text_single_operatorion;
-                    Console.WriteLine("Tj= " + text_single_operatorion);
-                    string Tj_content = make_Tj(text_single_operatorion);
-
-                    canvas.DrawText(Tj_content, position, paint);
-                }
-
-                if (text_single_operatorion.Contains("TJ"))
-                {
-                    //text_operators.Tm = text_single_operatorion;
-
-                    TJ_content = make_TJ(text_single_operatorion);
-                    canvas.DrawText(TJ_content, position, paint);
-                    Console.WriteLine("TJ= " + TJ_content);
-                }
-
-                if (text_single_operatorion.Contains("ET"))
-                {
-                    text_operators.Tf = text_single_operatorion;
-                    Console.WriteLine("ET= " + text_single_operatorion);
-                    position.X = 0;
-                    position.Y = page_height;
-                }
-
-
-
-            }
             //*/
             /*
             string stream_instruction = "BT \n " +          //begin BT
