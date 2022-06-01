@@ -1352,7 +1352,7 @@ namespace PDF
                             TJ_width = TJ_width + glyph_width[j];
                         }
 
-                        position.X = position.X + (float)(td_x/1000 * Tm.Tm_matrix.ScaleX + Tm.Tc) * Tm.Tm_matrix.ScaleX + TJ_width;
+                        position.X = position.X + (float)(td_x/1000  + Tm.Tc) * Tm.Tm_matrix.ScaleX + TJ_width;
                         Console.WriteLine(position.X);
                         Console.WriteLine("==================position.X[end]================");
 
