@@ -693,10 +693,10 @@ namespace PDF
             //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
 
             //string output_result = read_content(memory_stream, content, xref, "378"); //6942                         2=>3353=>1261=>406=>6941=>375=>377=>378
-            MemoryStream output_result = read_content(memory_stream, content, xref, "378"); //6942   
+            //string output_result = read_content(memory_stream, content, xref, "378"); //6942   
 
             Console.WriteLine("==========output_result[start]===========");
-            Console.WriteLine(output_result);
+            //Console.WriteLine(output_result);
             Console.WriteLine("==========output_result[end]===========");
 
             /*
@@ -935,9 +935,9 @@ namespace PDF
 
             
             SKPaint paint = new SKPaint();
-            paint.Style = SKPaintStyle.Stroke;
+            //paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 255, 0);
-            paint.StrokeWidth = 0;
+            //paint.StrokeWidth = 0;
             /*
             paint.Typeface = SKTypeface.FromFamilyName(
                 "Verdana",
@@ -946,8 +946,11 @@ namespace PDF
                 SKFontStyleSlant.Italic);
             //*/
 
-            paint.Typeface = SKTypeface.FromStream(output_result);
-;            
+            MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942   378
+
+            paint.Typeface = SKTypeface.FromStream(font_stream);
+;           
+
             float page_width = (float)612.0;
             float page_height = (float)792.0;
 
@@ -1869,7 +1872,7 @@ namespace PDF
             return result;
         }
 
-        public MemoryStream read_content(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
+        public string read_content(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
         {
 
             int line_number = int.Parse(xref[object_index].Split(" ")[0]);
@@ -1952,8 +1955,6 @@ namespace PDF
                 outputStream.Position = 0;
                 string output_result = Encoding.Default.GetString(outputStream.ToArray());
 
-                return outputStream;
-
 
                 /*
                 using (outputStream = new MemoryStream())
@@ -2010,13 +2011,62 @@ namespace PDF
                 Console.WriteLine(output_result);
                 Console.WriteLine("==========output_result[end]===========");
 
-                //return output_result;
+                return output_result;
             }
 
             return null;
 
         }
 
+        public MemoryStream make_font(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
+        {
+
+            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
+
+
+            string pages_object = read_obj(content, line_number);
+
+            string stream_length = read_stream_length(pages_object, "/Length");
+
+            if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
+            {
+
+                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
+                int stream_end = 0;
+
+                if (content[stream_start] == '\n')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                }
+                else if (content[stream_start] == '\r')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                }
+
+
+                int length_stream = stream_end - stream_start;
+
+                memory_stream.Position = stream_start;
+
+                byte[] byte_stream = new byte[length_stream];
+
+                memory_stream.Read(byte_stream, 0, length_stream);
+
+                var outputStream = new MemoryStream();
+                using var compressedStream = new MemoryStream(byte_stream);
+                using var inputStream = new InflaterInputStream(compressedStream);
+                inputStream.CopyTo(outputStream);
+                outputStream.Position = 0;
+
+                return outputStream;
+
+            }
+
+            return null;
+
+        }
 
 
         public Pages make_pages(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
