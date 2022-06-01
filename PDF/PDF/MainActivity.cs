@@ -692,7 +692,8 @@ namespace PDF
 
             //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
 
-            string output_result = read_content(memory_stream, content, xref, "6942");
+            //string output_result = read_content(memory_stream, content, xref, "378"); //6942                         2=>3353=>1261=>406=>6941=>375=>377=>378
+            MemoryStream output_result = read_content(memory_stream, content, xref, "378"); //6942   
 
             Console.WriteLine("==========output_result[start]===========");
             Console.WriteLine(output_result);
@@ -805,7 +806,7 @@ namespace PDF
                 "ET \n";                                            //   ET
             //*/
 
-
+            /*
             string start_page =
                 "BT \n" +
                 "/ CS0 cs 0 0 0  scn \n" +
@@ -929,11 +930,24 @@ namespace PDF
                 "Q \n" +
                 "scn\n";
                 //*/
+
+
+
+            
             SKPaint paint = new SKPaint();
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 255, 0);
             paint.StrokeWidth = 0;
+            /*
+            paint.Typeface = SKTypeface.FromFamilyName(
+                "Verdana",
+                SKFontStyleWeight.ExtraBold,
+                SKFontStyleWidth.UltraExpanded,
+                SKFontStyleSlant.Italic);
+            //*/
 
+            paint.Typeface = SKTypeface.FromStream(output_result);
+;            
             float page_width = (float)612.0;
             float page_height = (float)792.0;
 
@@ -1201,13 +1215,13 @@ namespace PDF
 
             canvas.DrawText("Happy earth!", position, paint);
             //*/
-
+            /*
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 0, 0);
             paint.StrokeWidth = 0;
             //paint.Shader = image_shader;
             canvas.DrawRect(0, 0, page_width, page_height, paint);
-
+            //*/
 
             canvas.Flush();
             canvas.Restore();
@@ -1855,7 +1869,7 @@ namespace PDF
             return result;
         }
 
-        public string read_content(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
+        public MemoryStream read_content(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
         {
 
             int line_number = int.Parse(xref[object_index].Split(" ")[0]);
@@ -1937,6 +1951,37 @@ namespace PDF
                 inputStream.CopyTo(outputStream);
                 outputStream.Position = 0;
                 string output_result = Encoding.Default.GetString(outputStream.ToArray());
+
+                return outputStream;
+
+
+                /*
+                using (outputStream = new MemoryStream())
+                {
+                    using (var compressedDataStream = new MemoryStream(byte_stream))
+                    {
+                        // Remove the first two bytes to skip the header (it isn't recognized by the DeflateStream class)
+                        compressedDataStream.ReadByte();
+                        compressedDataStream.ReadByte();
+
+                        var deflateStream = new DeflateStream(compressedDataStream, CompressionMode.Decompress, true);
+
+                        var decompressedBuffer = new byte[1024];
+                        int read;
+                        while ((read = deflateStream.Read(decompressedBuffer, 0, decompressedBuffer.Length)) != 0)
+                        {
+                            outputStream.Write(decompressedBuffer, 0, read);
+                        }
+                        outputStream.Flush();
+                        compressedDataStream.Close();
+                    }
+                    outputStream.Position = 0;
+                    output_result = Encoding.Default.GetString(outputStream.ToArray());
+
+                }
+                //*/
+
+
                 /*
                 Console.WriteLine("====================new[start]======================");
                 for (int i = 0; i < data.Length; i++)
@@ -1965,7 +2010,7 @@ namespace PDF
                 Console.WriteLine(output_result);
                 Console.WriteLine("==========output_result[end]===========");
 
-                return output_result;
+                //return output_result;
             }
 
             return null;
