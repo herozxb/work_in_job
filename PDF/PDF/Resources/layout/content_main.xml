@@ -30,7 +30,7 @@
         android:text="Hello World!" />
     <skiasharp.views.android.SKCanvasView
         android:layout_width="match_parent"
-        android:layout_height="1500px"
+        android:layout_height="1800px"
         android:id="@+id/canvasView" />
     </LinearLayout>
 </ScrollView>

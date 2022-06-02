@@ -46,6 +46,11 @@ namespace PDF
     }
 
 
+    public class Tc
+    {
+        public float value = 0;
+    }
+
     public class Tm
     {
         public SKMatrix Tm_matrix = new SKMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1);
@@ -806,7 +811,7 @@ namespace PDF
                 "ET \n";                                            //   ET
             //*/
 
-            /*
+            
             string start_page =
                 "BT \n" +
                 "/ CS0 cs 0 0 0  scn \n" +
@@ -946,15 +951,17 @@ namespace PDF
                 SKFontStyleSlant.Italic);
             //*/
 
-            MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942   378
 
-            paint.Typeface = SKTypeface.FromStream(font_stream);
 ;           
 
             float page_width = (float)612.0;
             float page_height = (float)792.0;
 
-            
+            /*
+            MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942   378
+
+            paint.Typeface = SKTypeface.FromStream(font_stream);
+
             string line = "0.021 Tc 48 0 0 48 194.3 623.74 Tm";
             Tm Tm = make_tm(line);
             SKPoint position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
@@ -1022,11 +1029,11 @@ namespace PDF
 
             //*/
 
-            /*
-            output_result.Replace("SCN","scn");
+
+            start_page.Replace("SCN","scn");
 
 
-            string[] scn_array = get_scn(output_result);
+            string[] scn_array = get_scn(start_page);
 
             Console.WriteLine("===========scn_array=============");
             for (int scn_index = 0; scn_index < scn_array.Length; scn_index++)
@@ -1038,6 +1045,7 @@ namespace PDF
 
                 Tm Tm = new Tm();
                 Td Td = new Td();
+                Tc Tc = new Tc();
                 string TJ_content = "";
                 SKPoint position = new SKPoint(0, 0);
                 for (int i = 0; i < scn_operations.Length; i++)
@@ -1049,6 +1057,20 @@ namespace PDF
                     if (text_single_operatorion.Contains("Tf"))
                     {
                         text_operators.Tf = text_single_operatorion;
+                        if (text_single_operatorion.Contains("TT0"))
+                        {
+                            MemoryStream font_stream = make_font(memory_stream, content, xref, "378"); //6942   378
+
+                            paint.Typeface = SKTypeface.FromStream(font_stream);
+                        }
+
+                        if (text_single_operatorion.Contains("TT1"))
+                        {
+                            MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942  427
+
+                            paint.Typeface = SKTypeface.FromStream(font_stream);
+                        }
+
                         Console.WriteLine("Tf= " + scn_operations[i]);
                     }
                     if (text_single_operatorion.Contains("Tm"))
@@ -1057,6 +1079,8 @@ namespace PDF
                         Console.WriteLine("Tm= " + scn_operations[i]);
 
                         Tm = make_tm(text_single_operatorion);
+
+                        Tc.value = Tm.Tc;
 
                         paint.TextSize = 1 * Tm.Tm_matrix.ScaleX;
 
@@ -1084,6 +1108,8 @@ namespace PDF
                         //Console.WriteLine("Td(clean)= " + text_single_operatorion);
 
                         Td = make_td(text_single_operatorion);
+                        Tc.value = Td.Tc;
+
                         position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
                         position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
 
@@ -1112,8 +1138,9 @@ namespace PDF
                     {
                         //text_operators.Tm = text_single_operatorion;
 
-                        TJ_content = make_TJ(text_single_operatorion);
-                        canvas.DrawText(TJ_content, position, paint);
+                        //TJ_content = make_TJ(text_single_operatorion);
+                        TJ_content = make_TJ(text_single_operatorion, position, paint, canvas, Tm, Tc);
+                        //canvas.DrawText(TJ_content, position, paint);
                         Console.WriteLine("TJ= " + TJ_content);
                     }
 
@@ -1218,7 +1245,7 @@ namespace PDF
 
             canvas.DrawText("Happy earth!", position, paint);
             //*/
-            /*
+            
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 0, 0);
             paint.StrokeWidth = 0;
@@ -1290,7 +1317,7 @@ namespace PDF
 
         }
 
-        public string make_TJ(string content,  SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm)
+        public string make_TJ(string content,  SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm, Tc Tc)
         {
             string[] TJ_array = content.Split("(");
 
@@ -1352,7 +1379,7 @@ namespace PDF
                             TJ_width = TJ_width + glyph_width[j];
                         }
 
-                        position.X = position.X + (float)(td_x/1000  + Tm.Tc) * Tm.Tm_matrix.ScaleX + TJ_width;
+                        position.X = position.X + (float)(td_x/1000  + Tc.value) * Tm.Tm_matrix.ScaleX + TJ_width;
                         Console.WriteLine(position.X);
                         Console.WriteLine("==================position.X[end]================");
 
