@@ -698,10 +698,10 @@ namespace PDF
             //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
 
             //string output_result = read_content(memory_stream, content, xref, "378"); //6942                         2=>3353=>1261=>406=>6941=>375=>377=>378
-            //string output_result = read_content(memory_stream, content, xref, "378"); //6942   
+            string output_result = read_content(memory_stream, content, xref, "6942"); //6942   378 is the font
 
             Console.WriteLine("==========output_result[start]===========");
-            //Console.WriteLine(output_result);
+            Console.WriteLine(output_result);
             Console.WriteLine("==========output_result[end]===========");
 
             /*
@@ -1033,7 +1033,7 @@ namespace PDF
             start_page.Replace("SCN","scn");
 
 
-            string[] scn_array = get_scn(start_page);
+            string[] scn_array = get_scn(output_result);
 
             Console.WriteLine("===========scn_array=============");
             for (int scn_index = 0; scn_index < scn_array.Length; scn_index++)
