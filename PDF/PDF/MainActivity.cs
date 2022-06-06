@@ -714,7 +714,11 @@ namespace PDF
 
             Console.WriteLine("==========output_result[start]===========");
             Console.WriteLine(widths);
+            int index_i = (int)'i' - 32;
+            Console.WriteLine(widths.Split(" ")[index_i]);
             Console.WriteLine("==========output_result[end]===========");
+
+
 
             /*
             int line_number = int.Parse(xref["6942"].Split(" ")[0]);
