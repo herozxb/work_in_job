@@ -710,11 +710,14 @@ namespace PDF
 
             string widths = read_array(font_descriptor, "/Widths");
 
+            string first_char = read_int(font_descriptor, "/FirstChar");
+
             //string font_descriptor = read_content(memory_stream, content, xref, "375");
 
             Console.WriteLine("==========output_result[start]===========");
             Console.WriteLine(widths);
-            int index_i = (int)'i' - 32;
+            Console.WriteLine(first_char);
+            int index_i = (int)'i' - int.Parse(first_char);
             Console.WriteLine(widths.Split(" ")[index_i]);
             Console.WriteLine("==========output_result[end]===========");
 
@@ -1045,7 +1048,7 @@ namespace PDF
 
             //*/
 
-            /*
+            
 
             start_page.Replace("SCN","scn");
 
@@ -1079,6 +1082,13 @@ namespace PDF
                             MemoryStream font_stream = make_font(memory_stream, content, xref, "378"); //6942   378
 
                             paint.Typeface = SKTypeface.FromStream(font_stream);
+
+
+                            line_number = int.Parse(xref["375"].Split(" ")[0]);
+                            font_descriptor = read_obj(content, line_number);
+                            widths = read_array(font_descriptor, "/Widths");
+                            first_char = read_int(font_descriptor, "/FirstChar");
+
                         }
 
                         if (text_single_operatorion.Contains("TT1"))
@@ -1086,6 +1096,12 @@ namespace PDF
                             MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942  427
 
                             paint.Typeface = SKTypeface.FromStream(font_stream);
+
+                            line_number = int.Parse(xref["424"].Split(" ")[0]);
+                            font_descriptor = read_obj(content, line_number);
+                            widths = read_array(font_descriptor, "/Widths");
+                            first_char = read_int(font_descriptor, "/FirstChar");
+
                         }
 
                         Console.WriteLine("Tf= " + scn_operations[i]);
@@ -1159,7 +1175,7 @@ namespace PDF
                         //text_operators.Tm = text_single_operatorion;
 
                         //TJ_content = make_TJ(text_single_operatorion);
-                        TJ_content = make_TJ(text_single_operatorion, position, paint, canvas, Tm, Tc);
+                        TJ_content = make_TJ(text_single_operatorion, position, paint, canvas, Tm, Tc, widths);
                         //canvas.DrawText(TJ_content, position, paint);
                         Console.WriteLine("TJ= " + TJ_content);
                     }
@@ -1176,19 +1192,7 @@ namespace PDF
                         position.X = 0;
                         position.Y = page_height;
                     }
-
-
-
                 }
-
-
-
-
-
-
-
-
-
             }
             
             
@@ -1342,7 +1346,7 @@ namespace PDF
 
         }
 
-        public string make_TJ(string content,  SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm, Tc Tc)
+        public string make_TJ(string content,  SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm, Tc Tc, string widths)
         {
             string[] TJ_array = content.Split("(");
 
@@ -1361,12 +1365,12 @@ namespace PDF
                         TJ_content = " ";
                     }
 
-                    Console.WriteLine("==================DrawText.X[start]================");
-                    Console.WriteLine(TJ_content);
-                    Console.WriteLine(TJ_content.Length);
+                    Console.WriteLine("==================TJ_content_DrawText.X[start]================");
+                    Console.WriteLine("TJ_content:" + TJ_content);
+                    Console.WriteLine("TJ_content length:"+TJ_content.Length.ToString());
                     Console.WriteLine(td_content);
                     Console.WriteLine(position.X);
-                    Console.WriteLine("==================DrawText.X[end]================");
+                    Console.WriteLine("==================TJ_content_DrawText.X[end]================");
                     canvas.DrawText(TJ_content, position, paint);
 
                     if (!td_content.Contains("TJ"))
@@ -1405,7 +1409,25 @@ namespace PDF
                             TJ_width = TJ_width + glyph_width[j];
                         }
 
-                        position.X = position.X + (float)(td_x/ 1000 * 0 + Tc.value) * Tm.Tm_matrix.ScaleX  + TJ_width;
+                        float width_TJ = 0;
+
+                        for (int k = 0; k < TJ_content.Length; k++)
+                        {
+                            int index_i = (int)TJ_content[k] - 32;
+                            if (TJ_content[k] == ' ')
+                            {
+                                index_i = 32 - 32;
+                            }
+                            //Console.WriteLine(widths.Replace("[", "").Replace("]", "").Split(" ")[index_i]);
+                            string char_width = widths.Replace("[", "").Replace("]", "").Split(" ")[index_i];
+                            width_TJ = width_TJ + float.Parse(char_width) / 1000;
+                        }
+
+
+                        //position.X = position.X + (float)(td_x/ 1000 * 0 + Tc.value) * Tm.Tm_matrix.ScaleX  + TJ_width;
+
+                        position.X = position.X + (width_TJ - td_x / 1000 + Tc.value) * Tm.Tm_matrix.ScaleX; 
+
                         Console.WriteLine("post X=" + position.X.ToString());
                         Console.WriteLine("TJ_width=" + TJ_width.ToString());
                         Console.WriteLine("==================position.X[end]================");
