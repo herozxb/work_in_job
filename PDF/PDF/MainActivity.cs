@@ -700,8 +700,20 @@ namespace PDF
             //string output_result = read_content(memory_stream, content, xref, "378"); //6942                         2=>3353=>1261=>406=>6941=>375=>377=>378
             string output_result = read_content(memory_stream, content, xref, "6942"); //6942   378 is the font
 
+            //Console.WriteLine("==========output_result[start]===========");
+            //Console.WriteLine(output_result);
+            //Console.WriteLine("==========output_result[end]===========");
+
+
+            line_number = int.Parse(xref["375"].Split(" ")[0]);
+            string font_descriptor = read_obj(content, line_number);
+
+            string widths = read_array(font_descriptor, "/Widths");
+
+            //string font_descriptor = read_content(memory_stream, content, xref, "375");
+
             Console.WriteLine("==========output_result[start]===========");
-            Console.WriteLine(output_result);
+            Console.WriteLine(widths);
             Console.WriteLine("==========output_result[end]===========");
 
             /*
@@ -811,7 +823,7 @@ namespace PDF
                 "ET \n";                                            //   ET
             //*/
 
-            
+
             string start_page =
                 "BT \n" +
                 "/ CS0 cs 0 0 0  scn \n" +
@@ -1029,6 +1041,7 @@ namespace PDF
 
             //*/
 
+            /*
 
             start_page.Replace("SCN","scn");
 
@@ -1130,7 +1143,10 @@ namespace PDF
                         //text_operators.Tm = text_single_operatorion;
                         Console.WriteLine("Tj= " + text_single_operatorion);
                         string Tj_content = make_Tj(text_single_operatorion);
-
+                        if (Tj_content == " ")
+                        {
+                            Console.WriteLine("Tj write empty = " + Tj_content);
+                        }
                         canvas.DrawText(Tj_content, position, paint);
                     }
 
@@ -1374,6 +1390,7 @@ namespace PDF
                         var matches = Regex.Matches(td_content_clean, @"-?[0-9]*\.?[0-9]+");
                         float td_x = float.Parse(matches[0].Value);
                         Console.WriteLine("==================position.X[start]================");
+                        Console.WriteLine("pre td_x=" + td_x.ToString());
                         Console.WriteLine("pre X="+position.X.ToString());
 
                         float[] glyph_width = paint.GetGlyphWidths(TJ_content);
@@ -2044,10 +2061,10 @@ namespace PDF
                 //*/
 
                 //string output_result = "";
-                Console.WriteLine("==========output_result[start]===========");
+                Console.WriteLine("==========output_result[start][in_read_content]===========");
                 Console.WriteLine(object_index);
                 Console.WriteLine(output_result);
-                Console.WriteLine("==========output_result[end]===========");
+                Console.WriteLine("==========output_result[end][in_read_content]===========");
 
                 return output_result;
             }

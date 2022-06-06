@@ -22,12 +22,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/linearLayout1">
-    <TextView
-        android:id="@+id/text_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="Hello World!" />
     <skiasharp.views.android.SKCanvasView
         android:layout_width="match_parent"
         android:layout_height="1800px"
