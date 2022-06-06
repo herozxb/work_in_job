@@ -1144,6 +1144,11 @@ namespace PDF
                         Console.WriteLine("TJ= " + TJ_content);
                     }
 
+                    if (text_single_operatorion.Contains("BT"))
+                    {
+                        Tc.value = 0;
+                    }
+
                     if (text_single_operatorion.Contains("ET"))
                     {
                         text_operators.Tf = text_single_operatorion;
@@ -1369,7 +1374,7 @@ namespace PDF
                         var matches = Regex.Matches(td_content_clean, @"-?[0-9]*\.?[0-9]+");
                         float td_x = float.Parse(matches[0].Value);
                         Console.WriteLine("==================position.X[start]================");
-                        Console.WriteLine(position.X);
+                        Console.WriteLine("pre X="+position.X.ToString());
 
                         float[] glyph_width = paint.GetGlyphWidths(TJ_content);
 
@@ -1379,8 +1384,9 @@ namespace PDF
                             TJ_width = TJ_width + glyph_width[j];
                         }
 
-                        position.X = position.X + (float)(td_x/1000  + Tc.value) * Tm.Tm_matrix.ScaleX + TJ_width;
-                        Console.WriteLine(position.X);
+                        position.X = position.X + (float)(td_x/ 1000 * 0 + Tc.value) * Tm.Tm_matrix.ScaleX  + TJ_width;
+                        Console.WriteLine("post X=" + position.X.ToString());
+                        Console.WriteLine("TJ_width=" + TJ_width.ToString());
                         Console.WriteLine("==================position.X[end]================");
 
                     }
@@ -1434,6 +1440,11 @@ namespace PDF
 
             string Tj_content = content.Substring(start_text, end_text - start_text);
             Console.WriteLine(Tj_content);
+            if (Tj_content == " ")
+            {
+                Console.WriteLine("===============empty Tj( )================");
+                Console.WriteLine(Tj_content.Length);
+            }
 
             return Tj_content;
         }
