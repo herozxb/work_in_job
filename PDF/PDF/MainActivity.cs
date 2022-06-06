@@ -1163,9 +1163,18 @@ namespace PDF
                         //text_operators.Tm = text_single_operatorion;
                         Console.WriteLine("Tj= " + text_single_operatorion);
                         string Tj_content = make_Tj(text_single_operatorion);
-                        if (Tj_content == " ")
+                        if (Tj_content == " " && !(scn_operations[i+1].Contains("TD") || scn_operations[i+1].Contains("Td"))  )
                         {
                             Console.WriteLine("Tj write empty = " + Tj_content);
+
+                            float width_TJ = 0;
+
+                            index_i = (int)' ' - 32;
+
+                            string char_width = widths.Replace("[", "").Replace("]", "").Split(" ")[index_i];
+                            width_TJ = float.Parse(char_width) / 1000;
+
+                            position.X = position.X + (width_TJ + Tc.value) * Tm.Tm_matrix.ScaleX;
                         }
                         canvas.DrawText(Tj_content, position, paint);
                     }
@@ -1423,6 +1432,25 @@ namespace PDF
                             width_TJ = width_TJ + float.Parse(char_width) / 1000;
                         }
 
+
+                        /*
+                         * 
+The equation
+It looks like you attempt to interpret the equation
+
+tx = ((w0 - Tj/1000) * Tfs + Tc + Tw) * Th
+in glyph space instead of text space, at least the values you insert appear to indicate that. Instead interpret it in text space in a font-type agnostic manner.
+
+In particular:
+
+w0 - use the width of the respective character from the width array in the PDF font dictionary and divide it by 1000; I would expect a value of about .667 for the capital A.
+Tj - use the value from the TJ operation array parameter, e.g. 120.
+Tfs - use the font size from the graphics state which is the font size parameter from the relevant Tf operation, e.g. 10.
+Tc - use the value from the graphics state which is the parameter from the relevant Tc or " operation.
+Tw - use 0 or (in case of a single-byte character code 32) the value from the graphics state which is the parameter from the relevant Tw or " operation.
+Th - use the value from the graphics state which is the parameter from the relevant Tz operation divided by 100.
+
+                        // */
 
                         //position.X = position.X + (float)(td_x/ 1000 * 0 + Tc.value) * Tm.Tm_matrix.ScaleX  + TJ_width;
 
