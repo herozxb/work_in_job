@@ -698,7 +698,7 @@ namespace PDF
             //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
 
             //string output_result = read_content(memory_stream, content, xref, "378"); //6942                         2=>3353=>1261=>406=>6941=>375=>377=>378
-            string output_result = read_content(memory_stream, content, xref, "6942"); //6942   378 is the font
+            string output_result = read_content(memory_stream, content, xref, "6942"); //6942 is the start page,    378 is the font
 
             //Console.WriteLine("==========output_result[start]===========");
             //Console.WriteLine(output_result);
@@ -1161,6 +1161,8 @@ namespace PDF
                     if (text_single_operatorion.Contains("Tj"))
                     {
                         //text_operators.Tm = text_single_operatorion;
+
+                        //if Tj, is not follow by the Td
                         Console.WriteLine("Tj= " + text_single_operatorion);
                         string Tj_content = make_Tj(text_single_operatorion);
                         if (Tj_content == " " && !(scn_operations[i+1].Contains("TD") || scn_operations[i+1].Contains("Td"))  )
@@ -1364,7 +1366,7 @@ namespace PDF
             {
                 Console.WriteLine("============make_TJ===========");
                 Console.WriteLine(TJ_array[i]);
-                if (!TJ_array[i].Contains("["))
+                if (!TJ_array[i].Contains("[") && TJ_array[i].Contains(")") )
                 {
                     string TJ_content = TJ_array[i].Split(")")[0];
                     string td_content = TJ_array[i].Split(")")[1];
