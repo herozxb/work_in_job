@@ -91,18 +91,9 @@ namespace PDF
 
         public PDFCrossReferences(MemoryStream memory_stream)
         {
-            var watch = System.Diagnostics.Stopwatch.StartNew();
-
             this.memory_stream = memory_stream;
-
             this.memory_stream.Position = 0;
             this.content = Encoding.ASCII.GetString(this.memory_stream.ToArray());
-
-            watch.Stop();
-            var elapsedMs = watch.ElapsedMilliseconds;
-            Console.WriteLine("==========ElapsedMilliseconds[to String]=====");
-            Console.WriteLine(elapsedMs);
-            Console.WriteLine(memory_stream.CanSeek);
 
             string trailer_string = read_trailer(content);
             string startxref = read_int(trailer_string, "startxref");
@@ -224,11 +215,8 @@ namespace PDF
         {
 
             List<string> xref_list = new List<string>();
-
             int entry_position = index + 6 + xref_length.Length + 2;
-
             int length = int.Parse(xref_length.Split(" ")[1]);
-
             for (int i = 0; i < length; i++)
             {
                 string xref_line = read_xref_line(content, entry_position);
@@ -278,11 +266,6 @@ namespace PDF
         {
             string result = "";
             int entry_position = content.IndexOf(label) + label.Length;
-            //Console.WriteLine("==========read_string===========");
-            //Console.WriteLine(content);
-            //Console.WriteLine(label);
-            //Console.WriteLine(entry_position);
-
             int slash_count = 0;
 
             while (true)
@@ -313,15 +296,11 @@ namespace PDF
             int line_number = int.Parse(this.xref[index].Split(" ")[0]);
             string content_object = read_obj(content, line_number);
             string type = read_string(content_object, "/Type");
-
-            //Console.WriteLine("===============================");
-            Console.WriteLine(content_object);
-
             return type;
         }
 
 
-        public PagesTreeNode make_pages(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
+        public PagesTreeNode make_pages(MemoryStream PDFStream, PDFCrossReferences References, int object_index)
         {
             string content = References.content;
             List<string> xref = References.xref;
@@ -366,7 +345,7 @@ namespace PDF
             return pages_tree_node;
         }
 
-        public PageTreeLeafNode make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
+        public PageTreeLeafNode make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)
         {
             string content = References.content;
             List<string> xref = References.xref;
@@ -378,7 +357,6 @@ namespace PDF
             PageTreeLeafNode leaf_node_page = new PageTreeLeafNode();
             leaf_node_page.Type = "PageLeafNode";
 
-            Console.WriteLine("================Kids[Stop]=====================");
             if (pages_object.Contains("/Parent"))
             {
                 leaf_node_page.Parent = References.read_obj_index(pages_object, "/Parent");
@@ -393,6 +371,13 @@ namespace PDF
                 string content_object = References.read_obj_index(pages_object, "/Contents");
                 content_object = References.clean_front_empty_space(content_object);
                 leaf_node_page.Contents = content_object;
+
+                int content_index = int.Parse(leaf_node_page.Contents.Split(" ")[0]);
+
+                if (content_index == 6942)
+                {
+                    string stream_content = read_stream_content(memory_stream, content, xref, content_index);
+                }
             }
 
             if (pages_object.Contains("/Rotate"))
@@ -405,9 +390,14 @@ namespace PDF
                 leaf_node_page.Annots = References.read_obj_index(pages_object, "/Annots");
             }
 
+            if (pages_object.Contains("/Resources"))
+            {
+                leaf_node_page.Resources = References.read_resources(pages_object, "/Resources");
+            }
+
+
             return leaf_node_page;
         }
-
         public string clean_front_empty_space(string content)
         {
             while (content[0] == ' ')
@@ -416,6 +406,188 @@ namespace PDF
             }
 
             return content;
+        }
+
+
+        public string read_resources(string content, string label)
+        {
+
+
+            string result = "";
+
+            //string index_result = read_obj_index(content, label);
+
+            //if (index_result.Contains('<') || index_result.Contains('>'))
+            //{
+
+                int entry_position = content.IndexOf(label) + label.Length;
+                int uncloseed_bracket = 0;
+
+                while (true)
+                {
+                    if (content[entry_position] == '<' && content[entry_position + 1] == '<')
+                    {
+                        uncloseed_bracket++;
+                        result = result + "<<";
+                        entry_position = entry_position + 2;
+                        continue;
+
+                    }
+
+                    if (content[entry_position] == '>' && content[entry_position + 1] == '>')
+                    {
+                        result = result + ">>";
+                        uncloseed_bracket--;
+                        if (uncloseed_bracket == 0)
+                        {
+                            break;
+                        }
+                        entry_position = entry_position + 2;
+                        continue;
+                    }
+
+
+                    result = result + content[entry_position];
+                    entry_position++;
+                }
+
+                return result;
+
+
+            //}
+            //else if (index_result.Contains("R"))
+            //{
+            //    return index_result;
+            //}
+
+            //result = "No Resources";
+
+            //return result;
+        }
+
+
+        public string read_stream_length(string content, string length_tag)
+        {
+            string result = "";
+            int entry_position = content.IndexOf(length_tag) + length_tag.Length; // +6 jump the "xref/r\n" length
+            while (true)
+            {
+                if (content[entry_position] == '>' || content[entry_position] == '/')
+                {
+                    break;
+                }
+                result = result + content[entry_position];
+                entry_position++;
+            }
+
+            return result;
+
+        }
+
+        public int search_position_from_content(string content, string string_searched)
+        {
+            return content.IndexOf(string_searched); ;
+        }
+
+        public string read_stream_content(MemoryStream memory_stream, string content, List<string> xref, int object_index)
+        {
+
+            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
+
+            string pages_object = read_obj(content, line_number);
+            string stream_length = read_stream_length(pages_object, "/Length");
+
+            if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
+            {
+
+                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
+                int stream_end = 0;
+
+                if (content[stream_start] == '\n')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                }
+                else if (content[stream_start] == '\r')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                }
+
+
+                int length_stream = stream_end - stream_start;
+
+                memory_stream.Position = stream_start;
+
+                byte[] byte_stream = new byte[length_stream];
+
+
+                memory_stream.Read(byte_stream, 0, length_stream);
+
+                var outputStream = new MemoryStream();
+                using var compressedStream = new MemoryStream(byte_stream);
+                using var inputStream = new InflaterInputStream(compressedStream);
+                inputStream.CopyTo(outputStream);
+                outputStream.Position = 0;
+                string output_result = Encoding.Default.GetString(outputStream.ToArray());
+
+                Console.WriteLine("==========[read_content]===========");
+                Console.WriteLine(object_index);
+                Console.WriteLine(output_result);
+                Console.WriteLine("==========[read_content]===========");
+
+                return output_result;
+            }
+
+            return null;
+        }
+
+
+        public MemoryStream read_font(MemoryStream memory_stream, string content, List<string> xref, int object_index)
+        {
+
+            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
+
+
+            string pages_object = read_obj(content, line_number);
+
+            string stream_length = read_stream_length(pages_object, "/Length");
+
+            if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
+            {
+
+                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
+                int stream_end = 0;
+
+                if (content[stream_start] == '\n')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                }
+                else if (content[stream_start] == '\r')
+                {
+                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                }
+
+
+                int length_stream = stream_end - stream_start;
+
+                memory_stream.Position = stream_start;
+
+                byte[] byte_stream = new byte[length_stream];
+
+                memory_stream.Read(byte_stream, 0, length_stream);
+
+                var outputStream = new MemoryStream();
+                using var compressedStream = new MemoryStream(byte_stream);
+                using var inputStream = new InflaterInputStream(compressedStream);
+                inputStream.CopyTo(outputStream);
+                outputStream.Position = 0;
+
+                return outputStream;
+            }
+            return null;
         }
 
     }
@@ -435,9 +607,6 @@ namespace PDF
         {
             PDFStream.Position = CrossReferences.GetObjectPosition(RootIndex);
             Root = PDFObject.Create(PDFStream, CrossReferences, RootIndex);
-
-            //PDFStream.Position = CrossReferences.GetObjectPosition(InfoIndex);
-            //Info = PDFObject.Create(PDFStream, CrossReferences);
         }
 
         public PDFTrailer(MemoryStream ObjectStream, PDFCrossReferences References)
@@ -516,9 +685,7 @@ namespace PDF
 
         private void Initialize(MemoryStream PDFStream)
         {
-            //PDFStream.Position = CrossReferences.GetObjectPosition(PagesIndex);
             this.Pages = (PDFPages)PDFObject.Create(PDFStream, CrossReferences, PagesIndex);
-
         }
 
         public PDFCatalog(MemoryStream PDFStream, PDFCrossReferences References, int PagesIndex) : base(PDFStream, References)
@@ -555,7 +722,6 @@ namespace PDF
         public string Kids;
 
         public List<PagesTreeNode> pages_children_list = new List<PagesTreeNode>();
-        //public PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
         public PDFPage page_tree_leaf_node;
     }
 
@@ -628,10 +794,10 @@ namespace PDF
             canvas.Scale(CanvasScale, CanvasScale);
 
 
-            /*
+            
             
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_5.pdf");
+            Stream stream = assets.Open("sample_2.pdf");
 
             MemoryStream memory_stream = new MemoryStream();
             stream.CopyTo(memory_stream);
@@ -646,7 +812,7 @@ namespace PDF
             int i = 0;
             //*/
 
-
+            /*
             AssetManager assets = this.Assets;
             Stream stream = assets.Open("sample_2.pdf");
             MemoryStream memory_stream = new MemoryStream();
@@ -665,12 +831,13 @@ namespace PDF
             string root_object = read_obj(content, line_number);
             string pages_start_index = read_obj_index(root_object, "/Pages");
             string output_result = read_content(memory_stream, content, xref, "6942"); //6942 is the start page,    378 is the font
-
+            //*/
 
             float page_width = (float)612.0;
             float page_height = (float)792.0;
 
             SKPaint paint = new SKPaint();
+
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 0, 0);
             paint.StrokeWidth = 0;
@@ -1378,8 +1545,6 @@ Th - use the value from the graphics state which is the parameter from the relev
 
             string stream_length = read_stream_length(pages_object, "/Length");
 
-            //Console.WriteLine(pages_object);
-            //Console.WriteLine(stream_length);
 
             if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
             {
@@ -1408,40 +1573,6 @@ Th - use the value from the graphics state which is the parameter from the relev
 
                 memory_stream.Read(byte_stream, 0, length_stream);
 
-                /*
-                int start = 0;
-                while ((byte_stream[start] == 0x0a) | (byte_stream[start] == 0x0d)) start++; // skip trailling cr, lf
-
-                Console.WriteLine("========start=========");
-                Console.WriteLine(start);
-
-
-                byte[] tempdata = new byte[byte_stream.Length - start];
-                Array.Copy(byte_stream, start, tempdata, 0, byte_stream.Length - start);
-
-                MemoryStream msInput = new MemoryStream(byte_stream);
-                MemoryStream msOutput = new MemoryStream();
-
-                Console.WriteLine("====================msInput======================");
-                Console.WriteLine(msInput.Length);
-                Console.WriteLine(msInput.Position);
-                try
-                {
-                    GZipStream decomp = new GZipStream(msInput, CompressionMode.Decompress);
-                    decomp.CopyTo(msOutput);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-
-                string output_result = Encoding.ASCII.GetString(msOutput.ToArray());
-                Console.WriteLine("====================msOutput======================");
-                Console.WriteLine(msOutput.Length);
-                Console.WriteLine(msOutput.Position);
-                //*/
-
-
                 var outputStream = new MemoryStream();
                 using var compressedStream = new MemoryStream(byte_stream);
                 using var inputStream = new InflaterInputStream(compressedStream);
@@ -1449,57 +1580,6 @@ Th - use the value from the graphics state which is the parameter from the relev
                 outputStream.Position = 0;
                 string output_result = Encoding.Default.GetString(outputStream.ToArray());
 
-
-                /*
-                using (outputStream = new MemoryStream())
-                {
-                    using (var compressedDataStream = new MemoryStream(byte_stream))
-                    {
-                        // Remove the first two bytes to skip the header (it isn't recognized by the DeflateStream class)
-                        compressedDataStream.ReadByte();
-                        compressedDataStream.ReadByte();
-
-                        var deflateStream = new DeflateStream(compressedDataStream, CompressionMode.Decompress, true);
-
-                        var decompressedBuffer = new byte[1024];
-                        int read;
-                        while ((read = deflateStream.Read(decompressedBuffer, 0, decompressedBuffer.Length)) != 0)
-                        {
-                            outputStream.Write(decompressedBuffer, 0, read);
-                        }
-                        outputStream.Flush();
-                        compressedDataStream.Close();
-                    }
-                    outputStream.Position = 0;
-                    output_result = Encoding.Default.GetString(outputStream.ToArray());
-
-                }
-                //*/
-
-
-                /*
-                Console.WriteLine("====================new[start]======================");
-                for (int i = 0; i < data.Length; i++)
-                {
-                    Console.Write(data[i]);
-                }
-                Console.WriteLine("====================new[end]======================");
-                //*/
-
-
-                /*
-                //jump 2 bytes of the stream 
-                byte[] cutinput = new byte[byte_stream.Length - 2];
-                Array.Copy(byte_stream, 2, cutinput, 0, cutinput.Length);
-
-                MemoryStream stream_output = new MemoryStream();
-                using (MemoryStream compressStream = new MemoryStream(cutinput))
-                using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
-                    decompressor.CopyTo(stream_output);
-                //string output_result = Encoding.ASCII.GetString(stream_output.ToArray());
-                //*/
-
-                //string output_result = "";
                 Console.WriteLine("==========output_result[start][in_read_content]===========");
                 Console.WriteLine(object_index);
                 Console.WriteLine(output_result);
@@ -1509,7 +1589,6 @@ Th - use the value from the graphics state which is the parameter from the relev
             }
 
             return null;
-
         }
 
         public MemoryStream make_font(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)
