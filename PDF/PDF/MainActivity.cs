@@ -91,9 +91,18 @@ namespace PDF
 
         public PDFCrossReferences(MemoryStream memory_stream)
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+
             this.memory_stream = memory_stream;
+
             this.memory_stream.Position = 0;
             this.content = Encoding.ASCII.GetString(this.memory_stream.ToArray());
+
+            watch.Stop();
+            var elapsedMs = watch.ElapsedMilliseconds;
+            Console.WriteLine("==========ElapsedMilliseconds[to String]=====");
+            Console.WriteLine(elapsedMs);
+            Console.WriteLine(memory_stream.CanSeek);
 
             string trailer_string = read_trailer(content);
             string startxref = read_int(trailer_string, "startxref");
@@ -215,8 +224,11 @@ namespace PDF
         {
 
             List<string> xref_list = new List<string>();
+
             int entry_position = index + 6 + xref_length.Length + 2;
+
             int length = int.Parse(xref_length.Split(" ")[1]);
+
             for (int i = 0; i < length; i++)
             {
                 string xref_line = read_xref_line(content, entry_position);
@@ -266,6 +278,11 @@ namespace PDF
         {
             string result = "";
             int entry_position = content.IndexOf(label) + label.Length;
+            //Console.WriteLine("==========read_string===========");
+            //Console.WriteLine(content);
+            //Console.WriteLine(label);
+            //Console.WriteLine(entry_position);
+
             int slash_count = 0;
 
             while (true)
@@ -296,11 +313,15 @@ namespace PDF
             int line_number = int.Parse(this.xref[index].Split(" ")[0]);
             string content_object = read_obj(content, line_number);
             string type = read_string(content_object, "/Type");
+
+            //Console.WriteLine("===============================");
+            Console.WriteLine(content_object);
+
             return type;
         }
 
 
-        public PagesTreeNode make_pages(MemoryStream PDFStream, PDFCrossReferences References, int object_index)
+        public PagesTreeNode make_pages(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
         {
             string content = References.content;
             List<string> xref = References.xref;
@@ -345,7 +366,7 @@ namespace PDF
             return pages_tree_node;
         }
 
-        public PageTreeLeafNode make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)
+        public PageTreeLeafNode make_page(MemoryStream PDFStream, PDFCrossReferences References, int object_index)//string content, List<string> xref, int object_index)
         {
             string content = References.content;
             List<string> xref = References.xref;
@@ -357,6 +378,7 @@ namespace PDF
             PageTreeLeafNode leaf_node_page = new PageTreeLeafNode();
             leaf_node_page.Type = "PageLeafNode";
 
+            Console.WriteLine("================Kids[Stop]=====================");
             if (pages_object.Contains("/Parent"))
             {
                 leaf_node_page.Parent = References.read_obj_index(pages_object, "/Parent");
@@ -371,13 +393,6 @@ namespace PDF
                 string content_object = References.read_obj_index(pages_object, "/Contents");
                 content_object = References.clean_front_empty_space(content_object);
                 leaf_node_page.Contents = content_object;
-
-                int content_index = int.Parse(leaf_node_page.Contents.Split(" ")[0]);
-
-                if (content_index == 6942)
-                {
-                    string stream_content = read_stream_content(memory_stream, content, xref, content_index);
-                }
             }
 
             if (pages_object.Contains("/Rotate"))
@@ -390,14 +405,9 @@ namespace PDF
                 leaf_node_page.Annots = References.read_obj_index(pages_object, "/Annots");
             }
 
-            if (pages_object.Contains("/Resources"))
-            {
-                leaf_node_page.Resources = References.read_resources(pages_object, "/Resources");
-            }
-
-
             return leaf_node_page;
         }
+
         public string clean_front_empty_space(string content)
         {
             while (content[0] == ' ')
@@ -406,188 +416,6 @@ namespace PDF
             }
 
             return content;
-        }
-
-
-        public string read_resources(string content, string label)
-        {
-
-
-            string result = "";
-
-            //string index_result = read_obj_index(content, label);
-
-            //if (index_result.Contains('<') || index_result.Contains('>'))
-            //{
-
-                int entry_position = content.IndexOf(label) + label.Length;
-                int uncloseed_bracket = 0;
-
-                while (true)
-                {
-                    if (content[entry_position] == '<' && content[entry_position + 1] == '<')
-                    {
-                        uncloseed_bracket++;
-                        result = result + "<<";
-                        entry_position = entry_position + 2;
-                        continue;
-
-                    }
-
-                    if (content[entry_position] == '>' && content[entry_position + 1] == '>')
-                    {
-                        result = result + ">>";
-                        uncloseed_bracket--;
-                        if (uncloseed_bracket == 0)
-                        {
-                            break;
-                        }
-                        entry_position = entry_position + 2;
-                        continue;
-                    }
-
-
-                    result = result + content[entry_position];
-                    entry_position++;
-                }
-
-                return result;
-
-
-            //}
-            //else if (index_result.Contains("R"))
-            //{
-            //    return index_result;
-            //}
-
-            //result = "No Resources";
-
-            //return result;
-        }
-
-
-        public string read_stream_length(string content, string length_tag)
-        {
-            string result = "";
-            int entry_position = content.IndexOf(length_tag) + length_tag.Length; // +6 jump the "xref/r\n" length
-            while (true)
-            {
-                if (content[entry_position] == '>' || content[entry_position] == '/')
-                {
-                    break;
-                }
-                result = result + content[entry_position];
-                entry_position++;
-            }
-
-            return result;
-
-        }
-
-        public int search_position_from_content(string content, string string_searched)
-        {
-            return content.IndexOf(string_searched); ;
-        }
-
-        public string read_stream_content(MemoryStream memory_stream, string content, List<string> xref, int object_index)
-        {
-
-            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
-
-            string pages_object = read_obj(content, line_number);
-            string stream_length = read_stream_length(pages_object, "/Length");
-
-            if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
-            {
-
-                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
-                int stream_end = 0;
-
-                if (content[stream_start] == '\n')
-                {
-                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
-                }
-                else if (content[stream_start] == '\r')
-                {
-                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
-                }
-
-
-                int length_stream = stream_end - stream_start;
-
-                memory_stream.Position = stream_start;
-
-                byte[] byte_stream = new byte[length_stream];
-
-
-                memory_stream.Read(byte_stream, 0, length_stream);
-
-                var outputStream = new MemoryStream();
-                using var compressedStream = new MemoryStream(byte_stream);
-                using var inputStream = new InflaterInputStream(compressedStream);
-                inputStream.CopyTo(outputStream);
-                outputStream.Position = 0;
-                string output_result = Encoding.Default.GetString(outputStream.ToArray());
-
-                Console.WriteLine("==========[read_content]===========");
-                Console.WriteLine(object_index);
-                Console.WriteLine(output_result);
-                Console.WriteLine("==========[read_content]===========");
-
-                return output_result;
-            }
-
-            return null;
-        }
-
-
-        public MemoryStream read_font(MemoryStream memory_stream, string content, List<string> xref, int object_index)
-        {
-
-            int line_number = int.Parse(xref[object_index].Split(" ")[0]);
-
-
-            string pages_object = read_obj(content, line_number);
-
-            string stream_length = read_stream_length(pages_object, "/Length");
-
-            if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
-            {
-
-                int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length;//2 is for "/r\n"
-                int stream_end = 0;
-
-                if (content[stream_start] == '\n')
-                {
-                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
-                }
-                else if (content[stream_start] == '\r')
-                {
-                    stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 2;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
-                }
-
-
-                int length_stream = stream_end - stream_start;
-
-                memory_stream.Position = stream_start;
-
-                byte[] byte_stream = new byte[length_stream];
-
-                memory_stream.Read(byte_stream, 0, length_stream);
-
-                var outputStream = new MemoryStream();
-                using var compressedStream = new MemoryStream(byte_stream);
-                using var inputStream = new InflaterInputStream(compressedStream);
-                inputStream.CopyTo(outputStream);
-                outputStream.Position = 0;
-
-                return outputStream;
-            }
-            return null;
         }
 
     }
@@ -607,6 +435,9 @@ namespace PDF
         {
             PDFStream.Position = CrossReferences.GetObjectPosition(RootIndex);
             Root = PDFObject.Create(PDFStream, CrossReferences, RootIndex);
+
+            //PDFStream.Position = CrossReferences.GetObjectPosition(InfoIndex);
+            //Info = PDFObject.Create(PDFStream, CrossReferences);
         }
 
         public PDFTrailer(MemoryStream ObjectStream, PDFCrossReferences References)
@@ -685,7 +516,9 @@ namespace PDF
 
         private void Initialize(MemoryStream PDFStream)
         {
+            //PDFStream.Position = CrossReferences.GetObjectPosition(PagesIndex);
             this.Pages = (PDFPages)PDFObject.Create(PDFStream, CrossReferences, PagesIndex);
+
         }
 
         public PDFCatalog(MemoryStream PDFStream, PDFCrossReferences References, int PagesIndex) : base(PDFStream, References)
@@ -722,6 +555,7 @@ namespace PDF
         public string Kids;
 
         public List<PagesTreeNode> pages_children_list = new List<PagesTreeNode>();
+        //public PageTreeLeafNode page_tree_leaf_node = new PageTreeLeafNode();
         public PDFPage page_tree_leaf_node;
     }
 
@@ -785,7 +619,7 @@ namespace PDF
 
         private void OnPaintSurface(object sender, SKPaintSurfaceEventArgs e)
         {
-            float CanvasScale = ((sender as SKCanvasView).Width - 12) / 794F;
+            float CanvasScale = ((sender as SKCanvasView).Width - 12) / 1190F;
 
             SKCanvas canvas = e.Surface.Canvas;
 
@@ -793,11 +627,15 @@ namespace PDF
             canvas.Translate(6, 6);
             canvas.Scale(CanvasScale, CanvasScale);
 
+            SKPaint paint = new SKPaint();
+            paint.Style = SKPaintStyle.Stroke;
+            paint.Color = new SKColor(0, 255, 0);
 
-            
+
+            /*
             
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_2.pdf");
+            Stream stream = assets.Open("sample_5.pdf");
 
             MemoryStream memory_stream = new MemoryStream();
             stream.CopyTo(memory_stream);
@@ -812,36 +650,790 @@ namespace PDF
             int i = 0;
             //*/
 
-            /*
+
+
+
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             AssetManager assets = this.Assets;
-            Stream stream = assets.Open("sample_2.pdf");
+            Stream stream = assets.Open("graph.pdf");
+
+            watch.Stop();
+            var elapsedMs = watch.ElapsedMilliseconds;
+            Console.WriteLine("==========ElapsedMilliseconds[assets.Open]=====");
+            Console.WriteLine(elapsedMs);
+            Console.WriteLine(stream.CanSeek);
+
             MemoryStream memory_stream = new MemoryStream();
             stream.CopyTo(memory_stream);
             string content = Encoding.ASCII.GetString(memory_stream.ToArray());
 
             string trailer_string = read_trailer(content);
+
             string size_in_trailer = read_int(trailer_string, "/Size");
             string root_in_trailer = read_obj_index(trailer_string, "/Root");
             string info_in_trailer = read_obj_index(trailer_string, "/Info");
+
             string startxref = read_int(trailer_string, "startxref");
 
+
+
+            Console.WriteLine(startxref);
+            watch = System.Diagnostics.Stopwatch.StartNew();
             Dictionary<string, string> xref = read_xref(content, int.Parse(startxref), read_length(content, int.Parse(startxref)));
 
+            watch.Stop();
+            elapsedMs = watch.ElapsedMilliseconds;
+
+            Console.WriteLine("==========ElapsedMilliseconds[read_xref]=====");
+            Console.WriteLine(elapsedMs);
+
+
+
             int line_number = int.Parse(xref[clean_front_empty_space(root_in_trailer).Split(" ")[0]].Split(" ")[0]);
+
             string root_object = read_obj(content, line_number);
+
+            Console.WriteLine(root_object);
+
             string pages_start_index = read_obj_index(root_object, "/Pages");
-            string output_result = read_content(memory_stream, content, xref, "6942"); //6942 is the start page,    378 is the font
+
+            Console.WriteLine(pages_start_index);
+
+            //Pages complete_pages = make_pages(memory_stream, content, xref, clean_front_empty_space(pages_start_index).Split(" ")[0]);
+
+            //string output_result = read_content(memory_stream, content, xref, "378"); //6942                         2=>3353=>1261=>406=>6941=>375=>377=>378
+            string output_result = read_content(memory_stream, content, xref, "4"); //6942 is the start page,    378 is the font
+
+            string [] drawing_instruction = output_result.Split("\n");
+
+            using (SKPath path = new SKPath())
+            {
+
+                SKPoint start_point = new SKPoint();
+                SKPoint line_point = new SKPoint();
+
+                for (int i = 0; i < drawing_instruction.Length; i++)
+                {
+                    string instruction = drawing_instruction[i];
+                    if (instruction.Contains("m"))
+                    {
+                        start_point.X = float.Parse(instruction.Split(" ")[0]);
+                        start_point.Y = float.Parse(instruction.Split(" ")[1]);
+                        path.MoveTo(start_point);
+                    }
+
+                    if (instruction.Contains("l"))
+                    {
+                        line_point.X = float.Parse(instruction.Split(" ")[0]);
+                        line_point.Y = float.Parse(instruction.Split(" ")[1]);
+                        path.LineTo(line_point);
+                    }
+
+                    if (instruction.Contains("h"))
+                    {
+                        path.LineTo(start_point);
+                    }
+
+                    if (instruction.Contains("f"))
+                    {
+                        canvas.DrawPath(path, paint);
+                    }
+
+
+                    
+                    // not meet
+                    if (instruction.Contains("c"))
+                    {
+                        SKPoint bezier_control_point_one = new SKPoint();
+                        bezier_control_point_one.X = float.Parse(instruction.Split(" ")[0]);
+                        bezier_control_point_one.Y = float.Parse(instruction.Split(" ")[1]);
+
+                        SKPoint bezier_control_point_two = new SKPoint();
+                        bezier_control_point_two.X = float.Parse(instruction.Split(" ")[2]);
+                        bezier_control_point_two.Y = float.Parse(instruction.Split(" ")[3]);
+
+                        SKPoint bezier_end_point = new SKPoint();
+                        bezier_end_point.X = float.Parse(instruction.Split(" ")[4]);
+                        bezier_end_point.Y = float.Parse(instruction.Split(" ")[5]);
+
+                        path.CubicTo(bezier_control_point_one, bezier_control_point_two, bezier_end_point);
+                        path.MoveTo(bezier_end_point);
+                    }
+
+                    
+                    if (instruction.Contains("v"))
+                    {
+                        SKPoint bezier_control_point_two = new SKPoint();
+                        bezier_control_point_two.X = float.Parse(instruction.Split(" ")[0]);
+                        bezier_control_point_two.Y = float.Parse(instruction.Split(" ")[1]);
+
+                        SKPoint bezier_end_point = new SKPoint();
+                        bezier_end_point.X = float.Parse(instruction.Split(" ")[2]);
+                        bezier_end_point.Y = float.Parse(instruction.Split(" ")[3]);
+
+
+                        path.QuadTo(bezier_control_point_two, bezier_end_point);
+                        path.MoveTo(bezier_end_point);
+
+                    }
+
+                    
+                    if (instruction.Contains("y"))
+                    {
+                        SKPoint bezier_control_point_one = new SKPoint();
+                        bezier_control_point_one.X = float.Parse(instruction.Split(" ")[0]);
+                        bezier_control_point_one.Y = float.Parse(instruction.Split(" ")[1]);
+
+                        SKPoint bezier_end_point = new SKPoint();
+                        bezier_end_point.X = float.Parse(instruction.Split(" ")[2]);
+                        bezier_end_point.Y = float.Parse(instruction.Split(" ")[3]);
+
+                        path.QuadTo(bezier_control_point_one, bezier_end_point);
+                        path.MoveTo(bezier_end_point);
+
+                    }
+
+                    
+                    if (instruction.Contains("re"))
+                    {
+
+                        float left = float.Parse(instruction.Split(" ")[0]);
+                        float bottom = float.Parse(instruction.Split(" ")[1]);
+                        float width = float.Parse(instruction.Split(" ")[2]);
+                        float height = float.Parse(instruction.Split(" ")[3]);
+
+
+                        SKRect rect = new SKRect();
+                        rect.Left = left;
+                        rect.Bottom = bottom;
+                        rect.Right = rect.Left + width;
+                        rect.Top = rect.Bottom + height;
+                        path.AddRect(rect);
+                        paint.StrokeWidth = 0;
+                        canvas.DrawPath(path, paint);
+
+                        /*
+                        SKPoint start_point_rect = new SKPoint();
+                        SKPoint line_point_rect = new SKPoint();
+
+                        start_point_rect.X = left;
+                        start_point_rect.Y = bottom;
+                        path.MoveTo(start_point_rect);
+
+                        line_point_rect.X = left + width;
+                        line_point_rect.Y = bottom;
+                        path.LineTo(line_point_rect);
+
+                        line_point_rect.X = left + width;
+                        line_point_rect.Y = bottom + height;
+                        path.LineTo(line_point_rect);
+
+                        line_point_rect.X = left;
+                        line_point_rect.Y = bottom + height;
+                        path.LineTo(line_point_rect);
+
+                        path.MoveTo(start_point_rect);
+
+                        canvas.DrawPath(path, paint);
+                        //*/
+                    }
+                    //*/
+                }
+            }
+
+
+
+            //Console.WriteLine("==========output_result[start]===========");
+            //Console.WriteLine(output_result);
+            //Console.WriteLine("==========output_result[end]===========");
+
+            /*
+
+            line_number = int.Parse(xref["375"].Split(" ")[0]);
+            string font_descriptor = read_obj(content, line_number);
+
+            string widths = read_array(font_descriptor, "/Widths");
+
+            string first_char = read_int(font_descriptor, "/FirstChar");
+
+            //string font_descriptor = read_content(memory_stream, content, xref, "375");
+
+            Console.WriteLine("==========output_result[start]===========");
+            Console.WriteLine(widths);
+            Console.WriteLine(first_char);
+            int index_i = (int)'i' - int.Parse(first_char);
+            Console.WriteLine(widths.Split(" ")[index_i]);
+            Console.WriteLine("==========output_result[end]===========");
+
             //*/
+
+            /*
+            int line_number = int.Parse(xref["6942"].Split(" ")[0]);
+            string pages_object = read_obj(content, line_number);
+            int stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length+2;//2 is for "/r\n"
+            int stream_end = line_number + search_position_from_content(pages_object, "endstream")-2; //2 is for "/r\n"
+            int length_stream = stream_end - stream_start;
+            memory_stream.Position = stream_start;
+            byte[] byte_stream = new byte[length_stream];
+            
+            memory_stream.Read(byte_stream, 0, length_stream);
+            string sub_string = content.Substring(stream_start, length_stream);
+            Console.WriteLine("=========sub_string============");
+            Console.WriteLine(sub_string);
+            // Convert a C# string to a byte array  
+            byte[] bytes = Encoding.Default.GetBytes(sub_string);
+            Console.WriteLine(bytes.Length);
+            //jump 2 bytes of the stream
+            byte[] cutinput = new byte[byte_stream.Length - 2];
+            Array.Copy(byte_stream, 2, cutinput, 0, cutinput.Length);
+            MemoryStream stream_output = new MemoryStream();
+            using (MemoryStream compressStream = new MemoryStream(cutinput))
+            using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
+                decompressor.CopyTo(stream_output);
+            string output_result = Encoding.Default.GetString(stream_output.ToArray());
+            //*/
+
+            //string output_result = read_content( memory_stream, content, xref, "6942");
+
+            //Console.WriteLine("==========output_result[start]===========");
+            //Console.WriteLine(output_result);
+            //Console.WriteLine("==========output_result[end]===========");
+
+
+
+
+
+            //Pages complete_pages = make_pages( memory_stream, content, xref, "2");
+            //Pages complete_pages = make_pages( memory_stream, content, xref, "16");
+            //*/
+
+
+            //Define the font state (Tf).
+            //Position the text cursor(Td).
+            //“Paint” the text onto the page(Tj).
+            //< a > < b > < c > < d > < e > < f > Tm:  Manually define the text matrix.
+
+            /*
+
+            string stream_instruction_new =
+
+                "BT \n" +                                           //BT
+                "/ CS0 cs 0 0 0  scn \n" +                          //1.scn
+                " / GS0 gs\n" +
+                "  / TT0 1 Tf \n" +                                 //2. Tf
+                "0.018 Tc 9.96 0 0 9.96 72.024 745.92 Tm \n" +      //3. Tm => 9.96, 0, 0, 9.96, 72.024, 745.92
+                "[(E) - 1(C) - 7(M)]TJ \n" +                        //4. TJ => "ECM"
+                "0 Tc 2.241 0 Td \n" +                              //5. Td => 2.241, 0 
+                "(A)Tj \n" +                                        //6. Tj => "A"
+                "0.71 0 Td \n" +                                    //7. Td => 0.71 0
+                "(-)Tj \n" +                                        //8. Tj => "-"
+                "0.027 Tc 0.482 0 Td \n" +                          //9. Td => 0.482 0
+                "(38)Tj \n" +                                       //10.Tj => "38"
+                "0 Tc 1.313 0 Td \n" +                              //   Td => 1.313 0
+                "(8)Tj \n" +                                        //   Tj => "8"
+                "0.651 0 Td \n" +                                   //   Td => 0.651 0
+                "()Tj \n" +                                         //   Tj =>
+                "32.824 0 Td \n" +                                  //   Td => 32.824 0
+                "(1)Tj \n" +                                        //   Tj => "1"
+                "0.663 0 Td \n" +                                   //   Td => 0.663 0
+                "(8)Tj \n" +                                        //   Tj => "8"
+                "0.663 0 Td \n" +                                   //   Td => 0.663 0
+                "(.)Tj \n" +                                        //   Tj => "."
+                "0.386 0 Td \n" +                                   //   Td => 0.386 0 
+                "()Tj \n" +                                         //   Tj => 
+                "0.018 Tc 0.374 0 Td \n" +                          //   Td => 0.374 0
+                "9.96 0 0 9.96 114.14 539.86 Tm  [(R)-10(end) - 10(er)11(i) - 21(ng) - 10() - 3(R)2(ul) - 21(e)]TJ \n" +  //TJ => "Rendering Rule"
+                "0 Tc(s)Tj \n" +                                    //   Tj "s"
+                "8.497 0 Td \n" +                                   //   Td => 8.497 0
+                "()Tj \n" +                                         //   Tj =>
+                "- 48.803 - 71.082 Td \n" +                         //   Td => -48.803 -71.082
+                " ()Tj \n" +                                        //   Tj
+                "19.147 0 Td \n" +                                  //   Td => 19.147 0
+                "()Tj \n" +                                         //   Tj
+                "ET \n" +                                           //   ET
+                " 0.004 Tc 0.349 0 Td \n" +                         //   Td
+
+                "     [(F)1(i) - 11(r)9(s)7(t)7(E)9(d)1(i) - 11(t)12(i) - 11(o)]TJ \n" + //TJ => FirstEditio
+                "0 Tc 5.374 0 Td \n" +                              //   Td => 5.374 0
+                "(n)Tj \n" +                                        //   Tj => "n"
+                "0.639 0 Td \n" +                                   //   Td => 0.639 0
+                "(,)Tj \n" +                                        //   Tj => ","
+                "0.361 0 Td \n" +                                   //   Td => 0.361 0
+                "()Tj \n" +                                         //   Tj
+                "0.003 Tc 0.349 0 Td \n" +                          //   Td => 0.349 0
+                "69.504 537.82 159.866 24.24 re  [(Ju)-3(n) - 2(e)9()6(2)1(0)1(0)]TJ \n" +  //TJ => June 200
+                "0 Tc(9)Tj \n" +                                    //   Tj => "9"
+                "5.243 0 Td \n" +                                   //   Td => 5.243 0
+                "()Tj \n" +                                         //   Tj
+                "0.003 Tc 15.425 0 Td \n" +                         //   Td => 15.425 0
+                "[(2)1(4)]TJ \n" +                                  //   TJ => 24
+
+                "BT 0 Tc(7)Tj \n" +                                 //   BT Tj
+                "1.916 0 Td \n" +                                   //   Td => 1.916 0
+                "()Tj \n" +                                         //   Tj
+                "ET \n";                                            //   ET
+            //*/
+
+
+            string start_page =
+                "BT \n" +
+                "/ CS0 cs 0 0 0  scn \n" +
+                " / GS0 gs \n" +
+                "  / TT0 1 Tf \n" +
+                "9.96 0 0 9.96 72.024 745.92 Tm \n" +
+                "()Tj \n" +
+                "0.6 0.6 0.6  scn \n" +
+                "24.4 - 71.082 Td \n" +
+                " ()Tj \n" +
+                "0 0 0  scn \n" +
+                "/ TT1 1 Tf \n" +
+                "0.021 Tc 48 0 0 48 194.3 623.74 Tm \n" +
+                "[(O)1(pen)1()1(XM)2(L)]TJ \n" +
+                "0 Tc 5.78 0 Td \n" +
+                "()Tj \n" +
+                "0.02 Tc - 4.572 - 1.215 Td \n" +
+                "  [(P)1(a)1(p) - 3(e) - 1(r)]TJ \n" +
+                "0 Tc()Tj \n" +
+                "0.02 Tc - 2.066 - 1.216 Td \n" +
+                "  [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n" +
+                "0 Tc 6.76 0 Td \n" +
+                "(n)Tj \n" +
+                "0.734 0 Td \n" +
+                "()Tj \n" +
+                "ET \n"
+                +
+                "106.58 496.39 452.96 0.481 re \n" +
+                "f \n" +
+                "BT \n" +
+                "/ TT0 1 Tf \n" +
+                "14.04 0 0 14.04 315.05 479.47 Tm \n" +
+                "()Tj \n" +
+                "- 11.045 - 1.419 Td \n" +
+                " [(O)1(p) - 1(e) - 2(n)1(X)10(P) - 4(S)2(S)9(p) - 1(e) - 2(c)8(i) - 8(f)10(i)1(ca)3(t)1(i) - 8(on)1()2(a)11(n)1(d) - 1()2(R)3(e) - 2(f)10(e) - 2(r)8(e) - 2(n)1(ce) - 2()10(G) - 3(u)9(i) - 8(d)]TJ \n" +
+                "21.487 0 Td \n" +
+                "(e)Tj \n" +
+                "0.593 0 Td \n" +
+                "()Tj \n" +
+                "- 11.036 - 1.427 Td \n" +
+                " ()Tj \n" +
+                "0 - 1.427 TD \n" +
+                " ()Tj \n" +
+                "0 - 1.427 TD \n" +
+                " ()Tj \n" +
+                "- 2.983 - 1.427 Td \n" +
+                "  (F)Tj \n" +
+                "0.008 Tc 0.573 0 Td \n" +
+                "[(ir)8(s)8(t)9()18(E)8(d)16(it)17(io)]TJ \n" +
+                "0 Tc 4.769 0 Td \n" +
+                "(n)Tj \n" +
+                "0.625 0 Td \n" +
+                "()Tj \n" +
+                "- 2.984 - 1.419 Td \n" +
+                " ()Tj \n" +
+                "- 0.002 Tc - 2.598 - 1.429 Td \n" +
+                "   [(Ju) - 1(n)]TJ \n" +
+                "0 Tc 1.718 0 Td \n" +
+                "(e)Tj \n" +
+                "0.598 0 Td \n" +
+                "()Tj \n" +
+                "- 0.003 Tc 0.35 0 Td \n" +
+                "[(2)1(0)1(0)]TJ \n" +
+                "0 Tc 1.897 0 Td \n" +
+                "(9)Tj \n" +
+                "0.634 0 Td \n" +
+                "()Tj \n" +
+                "- 2.6 - 1.427 Td \n" +
+                " ()Tj \n" +
+                "T * \n" +
+                "( )Tj \n" +
+                "9.96 0 0 9.96 192.86 278.57 Tm \n" +
+                "(\\251)Tj \n" +
+                "()Tj \n" +
+                "0.003 Tc 1.349 0 Td \n" +
+                "[(2)1(00)]TJ \n" +
+                "0 Tc 1.916 0 Td \n" +
+                "(9)Tj \n" +
+                "0.642 0 Td \n" +
+                "(,)Tj \n" +
+                "0.361 0 Td \n" +
+                "()Tj \n" +
+                "- 0.005 Tc 0.361 0 Td \n" +
+                "[(E)1(c) - 2(m) - 8(a) - 18() - 14(I)6(n) - 11(t) - 9(e) - 11(rn) - 11(a) - 6(t) - 9(i) - 8(on) - 11(a) - 6(l) - 20(.) - 2() - 2(A) - 8(l) - 8(l) - 20() - 2(r)12(i) - 20(g) - 8(h) - 11(t) - 9(s) - 2() - 2(re)1(s) - 14(e)1(r) - 12(v) - 3(e)1(d)]TJ \n" +
+                "0 Tc 19.542 0 Td \n" +
+                "(.)Tj \n" +
+                "0.363 0 Td \n" +
+                "()Tj \n" +
+                "- 36.667 - 2.12 Td \n" +
+                " ()Tj \n" +
+                "0 - 2.133 TD \n" +
+                " ()Tj \n" +
+                "0 - 2.12 TD \n" +
+                " ()Tj \n" +
+                "0.006 Tc 7.578 - 2.12 Td \n" +
+                " [(T)8(h)1(i) - 9(s)9()9(d)2(o)11(c)9(u)1(m)3(e)12(n)1(t)]TJ \n" +
+                "0 Tc 7.398 0 Td \n" +
+                "()Tj \n" +
+                "0.001 Tc[(wa) - 12(s)]TJ \n" +
+                "0 Tc 2.304 0 Td \n" +
+                "()Tj \n" +
+                "0.004 Tc 0.349 0 Td \n" +
+                "[(p)1(r) - 3(o) - 3(d)1(u) - 2(c)7(e)10(d)1()7(b)1(y)]TJ \n" +
+                "0 Tc 6.241 0 Td \n" +
+                "()Tj \n" +
+                "- 0.005 Tc 0.361 0 Td \n" +
+                "[(E) - 11(c) - 2(m) - 8(a) - 6() - 2(T) - 16(e)1(c) - 2(h) - 11(n) - 10(i) - 20(c) - 2(a) - 6(l) - 20() - 2(C) - 6(om) - 8(m) - 8(i) - 20(t) - 9(t) - 9(e)1(e)]TJ \n" +
+                "0 Tc 13.663 0 Td \n" +
+                "()Tj \n" +
+                "- 0.002 Tc 0.351 0 Td \n" +
+                "[(TC) - 3(4) - 4(6)]TJ \n" +
+                "0 Tc 2.59 0 Td \n" +
+                "(.)Tj \n" +
+                "ET \n" +
+                "/ CS0 CS 0 0 0  SCN \n" +
+                " / GS1 gs \n" +
+                "  q 1 0 0 1 191.96 720 cm \n" +
+                "0 0 m \n" +
+                "1.92 0 l \n" +
+                "S \n" +
+                "Q \n" +
+                "scn\n";
+            //*/
+
+
+
+
+
+            //paint.StrokeWidth = 0;
+            /*
+            paint.Typeface = SKTypeface.FromFamilyName(
+                "Verdana",
+                SKFontStyleWeight.ExtraBold,
+                SKFontStyleWidth.UltraExpanded,
+                SKFontStyleSlant.Italic);
+            //*/
+
+
+            ;
 
             float page_width = (float)612.0;
             float page_height = (float)792.0;
 
-            SKPaint paint = new SKPaint();
+            /*
+            MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942   378
+
+            paint.Typeface = SKTypeface.FromStream(font_stream);
+
+            string line = "0.021 Tc 48 0 0 48 194.3 623.74 Tm";
+            Tm Tm = make_tm(line);
+            SKPoint position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
+            paint.TextSize = 1 * Tm.Tm_matrix.ScaleX;
+
+
+            line = "[(O)1(pen)1()1(XM)2(L)]TJ \n";
+            string TJ_content = make_TJ(line, position,paint,canvas,Tm);
+
+            Console.WriteLine("===========position[OpenXML]============");
+            Console.WriteLine(position.X);
+            Console.WriteLine(position.Y);
+
+            
+            //canvas.DrawText(TJ_content, position, paint);
+
+            line = "0 Tc 5.78 0 Td \n";
+            Td Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+            Console.WriteLine("===========position[null]============");
+            Console.WriteLine(position.X);
+            Console.WriteLine(position.Y);
+
+            line = "()Tj \n";
+            string Tj_content = make_Tj(line);
+            canvas.DrawText(Tj_content, position, paint);
+
+            line = "0.02 Tc - 4.572 - 1.215 Td \n";
+            Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(-Td.td_y ) * Tm.Tm_matrix.ScaleY;
+
+            Console.WriteLine("===========position[Paper]============");
+            Console.WriteLine(position.X);
+            Console.WriteLine(position.Y);
+
+            line = "  [(P)1(a)1(p) - 3(e) - 1(r)]TJ \n";
+            TJ_content = make_TJ(line, position,paint,canvas,Tm);
+            //canvas.DrawText(TJ_content, position, paint);
+
+            line = "0.02 Tc - 2.066 - 1.216 Td \n";
+            Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+            line = "  [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n";
+            TJ_content = make_TJ(line, position,paint,canvas,Tm);
+            //canvas.DrawText(TJ_content, position, paint);
+
+            line = "0 Tc 6.76 0 Td \n";
+
+            Td = make_td(line);
+
+            position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+            position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+            line = "(n)Tj \n";
+            Tj_content = make_Tj(line);
+            canvas.DrawText(Tj_content, position, paint);
+
+            //*/
+
+            /*
+
+            start_page.Replace("SCN", "scn");
+
+
+            string[] scn_array = get_scn(output_result);
+
+            Console.WriteLine("===========scn_array=============");
+            for (int scn_index = 0; scn_index < scn_array.Length; scn_index++)
+            {
+                Console.WriteLine(scn_array[scn_index]);
+                textOperators text_operators = new textOperators();
+                string[] scn_operations = get_operation(scn_array[scn_index]);
+
+
+                Tm Tm = new Tm();
+                Td Td = new Td();
+                Tc Tc = new Tc();
+                string TJ_content = "";
+                SKPoint position = new SKPoint(0, 0);
+                for (int i = 0; i < scn_operations.Length; i++)
+                {
+                    Console.WriteLine("============[one]============");
+                    Console.WriteLine(scn_operations[i]);
+                    string text_single_operatorion = scn_operations[i];
+
+                    if (text_single_operatorion.Contains("Tf"))
+                    {
+                        text_operators.Tf = text_single_operatorion;
+                        if (text_single_operatorion.Contains("TT0"))
+                        {
+                            MemoryStream font_stream = make_font(memory_stream, content, xref, "378"); //6942   378
+
+                            paint.Typeface = SKTypeface.FromStream(font_stream);
+
+
+                            line_number = int.Parse(xref["375"].Split(" ")[0]);
+                            font_descriptor = read_obj(content, line_number);
+                            widths = read_array(font_descriptor, "/Widths");
+                            first_char = read_int(font_descriptor, "/FirstChar");
+
+                        }
+
+                        if (text_single_operatorion.Contains("TT1"))
+                        {
+                            MemoryStream font_stream = make_font(memory_stream, content, xref, "427"); //6942  427
+
+                            paint.Typeface = SKTypeface.FromStream(font_stream);
+
+                            line_number = int.Parse(xref["424"].Split(" ")[0]);
+                            font_descriptor = read_obj(content, line_number);
+                            widths = read_array(font_descriptor, "/Widths");
+                            first_char = read_int(font_descriptor, "/FirstChar");
+
+                        }
+
+                        Console.WriteLine("Tf= " + scn_operations[i]);
+                    }
+                    if (text_single_operatorion.Contains("Tm"))
+                    {
+                        //text_operators.Tm = text_single_operatorion;
+                        Console.WriteLine("Tm= " + scn_operations[i]);
+
+                        Tm = make_tm(text_single_operatorion);
+
+                        Tc.value = Tm.Tc;
+
+                        paint.TextSize = 1 * Tm.Tm_matrix.ScaleX;
+
+                        position = new SKPoint(Tm.Tm_matrix.TransX, page_height - Tm.Tm_matrix.TransY);
+
+                        Console.WriteLine("Tm X= " + Tm.Tm_matrix.TransX);
+                        Console.WriteLine("Tm Y= " + Tm.Tm_matrix.TransY);
+
+
+
+                    }
+                    if (text_single_operatorion.Contains("Td") || text_single_operatorion.Contains("TD"))
+                    {
+                        //if (text_single_operatorion.Contains("Tc"))
+                        //{
+                        //   text_single_operatorion = text_single_operatorion.Substring(text_single_operatorion.IndexOf("Tc") + "Tc".Length);
+
+                        //}
+
+                        //text_single_operatorion = clean_front_empty_space(text_single_operatorion);
+                        //text_operators.Tm = text_single_operatorion;
+
+
+                        Console.WriteLine("Td= " + text_single_operatorion);
+                        //Console.WriteLine("Td(clean)= " + text_single_operatorion);
+
+                        Td = make_td(text_single_operatorion);
+                        Tc.value = Td.Tc;
+
+                        position.X = position.X + (float)(Td.td_x + Tm.Tc) * Tm.Tm_matrix.ScaleX;
+                        position.Y = position.Y + (float)(-Td.td_y) * Tm.Tm_matrix.ScaleY;
+
+
+
+                        Console.WriteLine("Tm X= " + Td.td_x);
+                        Console.WriteLine("Tm Y= " + Td.td_y);
+                        Console.WriteLine("Tm Tc= " + Td.Tc);
+                        Console.WriteLine("Tm ScaleX= " + Tm.Tm_matrix.ScaleX);
+                        Console.WriteLine("Tm ScaleY= " + Tm.Tm_matrix.ScaleY);
+                        Console.WriteLine("position X= " + position.X.ToString());
+                        Console.WriteLine("position Y= " + position.Y.ToString());
+
+                    }
+
+                    if (text_single_operatorion.Contains("Tj"))
+                    {
+                        //text_operators.Tm = text_single_operatorion;
+
+                        //if Tj, is not follow by the Td
+                        Console.WriteLine("Tj= " + text_single_operatorion);
+                        string Tj_content = make_Tj(text_single_operatorion);
+                        if (Tj_content == " " && !(scn_operations[i + 1].Contains("TD") || scn_operations[i + 1].Contains("Td")))
+                        {
+                            Console.WriteLine("Tj write empty = " + Tj_content);
+
+                            float width_TJ = 0;
+
+                            index_i = (int)' ' - 32;
+
+                            string char_width = widths.Replace("[", "").Replace("]", "").Split(" ")[index_i];
+                            width_TJ = float.Parse(char_width) / 1000;
+
+                            position.X = position.X + (width_TJ + Tc.value) * Tm.Tm_matrix.ScaleX;
+                        }
+                        canvas.DrawText(Tj_content, position, paint);
+                    }
+
+                    if (text_single_operatorion.Contains("TJ"))
+                    {
+                        //text_operators.Tm = text_single_operatorion;
+
+                        //TJ_content = make_TJ(text_single_operatorion);
+                        TJ_content = make_TJ(text_single_operatorion, position, paint, canvas, Tm, Tc, widths);
+                        //canvas.DrawText(TJ_content, position, paint);
+                        Console.WriteLine("TJ= " + TJ_content);
+                    }
+
+                    if (text_single_operatorion.Contains("BT"))
+                    {
+                        Tc.value = 0;
+                    }
+
+                    if (text_single_operatorion.Contains("ET"))
+                    {
+                        text_operators.Tf = text_single_operatorion;
+                        Console.WriteLine("ET= " + text_single_operatorion);
+                        position.X = 0;
+                        position.Y = page_height;
+                    }
+                }
+            }
+
+
+
+
+
+            //*/
+            /*
+            string stream_instruction = "BT \n " +          //begin BT
+                "/CS0 cs 0 0 0  scn \n" +                   //1. scn
+                "/GS0 gs \n " +                 
+                "/TT0 1 Tf \n " +                           //2. Tf
+                "9.96 0 0 9.96 72.024 745.92 Tm \n " +      //3. Tm
+                "()Tj \n " +                                //4. Tj
+                "0.6 0.6 0.6  scn \n " +                    //1. scn
+                "24.4 - 71.082 Td \n" +                     //2. Td
+                "()Tj \n" +                                 //3. Tj
+                "0 0 0  scn \n" +                           //1. scn
+                "/ TT1 1 Tf \n" +                           //2. Tf
+                "0.021 Tc 48 0 0 48 194.3 623.74 Tm \n" +   //3. Tm
+                "[(O)1(pen)1()1(XM)2(L)]TJ \n" +            //4. TJ
+                "0 Tc 5.78 0 Td \n" +                       //5. Td
+                "()Tj \n" +                                 //6. Tj
+                "0.02 Tc - 4.572 - 1.215 Td \n" +           //7. Td
+                "[(P)1(a)1(p) - 3(e) - 1(r)]TJ \n" +        //8. TJ
+                "0 Tc()Tj \n" +                             //9. Tj
+                "0.02 Tc - 2.066 - 1.216 Td \n" +           //10. Td
+                " [(Sp) - 1(e) - 3(c)1(ifi) - 3(c) - 2(a)1(t)1(io)]TJ \n" + //11. TJ
+                "0 Tc 6.76 0 Td \n" +                       //12. Td
+                "(n)Tj \n" +                                //13. Tj
+                "0.734 0 Td  \n" +                          //14. Td
+                "()Tj \n" +                                 //15. Tj
+                "ET";                                       //0. ET
+            string[] scn_array = get_scn(stream_instruction);
+            Console.WriteLine("===========scn_array=============");
+            for (int i = 0; i < scn_array.Length; i++)
+            {
+                Console.WriteLine(scn_array[i]);
+            }
+            textOperators text_operators = new textOperators();
+            string[] scn_operations =  get_operation(scn_array[1]);
+            for (int i = 0; i < scn_operations.Length; i++)
+            {
+                Console.WriteLine("============[one]============");
+                Console.WriteLine(scn_operations[i]);
+                string text_single_operatorion = scn_operations[i];
+                if (text_single_operatorion.Contains("Tf"))
+                {
+                    text_operators.Tf = text_single_operatorion;
+                }
+                if (text_single_operatorion.Contains("Tm"))
+                {
+                    text_operators.Tm = text_single_operatorion;
+                }
+            }
+
+            string text = "";                                
+            visit_tree_node(complete_pages, ref text);
+            AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
+            text_view.SetText(text.ToCharArray(), 0, text.Length);
+            //*/
+
+
+            //AppCompatTextView text_view = FindViewById<AppCompatTextView>(Resource.Id.text_view);
+            //text_view.SetText(text.ToCharArray(), 0, text.Length);
+
+
+
+            //SKPoint position = new SKPoint(100,100);
+
+            //canvas.DrawRect(0, 0, 794, 1123, paint);
+
+            //canvas.DrawText("Happy everyday!", position, paint);
+
+            /*
+            position = new SKPoint(100, 200);
+
+            //canvas.DrawRect(0, 0, 794, 1123, paint);
+
+            canvas.DrawText("Happy earth!", position, paint);
+            //*/
 
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = new SKColor(0, 0, 0);
             paint.StrokeWidth = 0;
-            canvas.DrawRect(0, 0, page_width, page_height, paint);
+            //paint.Shader = image_shader;
+            //canvas.DrawRect(0, 0, page_width, page_height, paint);
+            //*/
 
             canvas.Flush();
             canvas.Restore();
@@ -907,16 +1499,16 @@ namespace PDF
 
         }
 
-        public string make_TJ(string content,  SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm, Tc Tc, string widths)
+        public string make_TJ(string content, SKPoint position, SKPaint paint, SKCanvas canvas, Tm Tm, Tc Tc, string widths)
         {
             string[] TJ_array = content.Split("(");
 
-            
+
             for (int i = 0; i < TJ_array.Length; i++)
             {
                 Console.WriteLine("============make_TJ===========");
                 Console.WriteLine(TJ_array[i]);
-                if (!TJ_array[i].Contains("[") && TJ_array[i].Contains(")") )
+                if (!TJ_array[i].Contains("[") && TJ_array[i].Contains(")"))
                 {
                     string TJ_content = TJ_array[i].Split(")")[0];
                     string td_content = TJ_array[i].Split(")")[1];
@@ -928,7 +1520,7 @@ namespace PDF
 
                     Console.WriteLine("==================TJ_content_DrawText.X[start]================");
                     Console.WriteLine("TJ_content:" + TJ_content);
-                    Console.WriteLine("TJ_content length:"+TJ_content.Length.ToString());
+                    Console.WriteLine("TJ_content length:" + TJ_content.Length.ToString());
                     Console.WriteLine(td_content);
                     Console.WriteLine(position.X);
                     Console.WriteLine("==================TJ_content_DrawText.X[end]================");
@@ -960,7 +1552,7 @@ namespace PDF
                         float td_x = float.Parse(matches[0].Value);
                         Console.WriteLine("==================position.X[start]================");
                         Console.WriteLine("pre td_x=" + td_x.ToString());
-                        Console.WriteLine("pre X="+position.X.ToString());
+                        Console.WriteLine("pre X=" + position.X.ToString());
 
                         float[] glyph_width = paint.GetGlyphWidths(TJ_content);
 
@@ -1006,7 +1598,7 @@ Th - use the value from the graphics state which is the parameter from the relev
 
                         //position.X = position.X + (float)(td_x/ 1000 * 0 + Tc.value) * Tm.Tm_matrix.ScaleX  + TJ_width;
 
-                        position.X = position.X + (width_TJ - td_x / 1000 + Tc.value) * Tm.Tm_matrix.ScaleX; 
+                        position.X = position.X + (width_TJ - td_x / 1000 + Tc.value) * Tm.Tm_matrix.ScaleX;
 
                         Console.WriteLine("post X=" + position.X.ToString());
                         Console.WriteLine("TJ_width=" + TJ_width.ToString());
@@ -1089,7 +1681,7 @@ Th - use the value from the graphics state which is the parameter from the relev
                 //td_content = td_content.Replace(" ", ""); 
                 string td_content_clean = "";
                 int index = 0;
-                while (index<td_content.Length)
+                while (index < td_content.Length)
                 {
                     if (td_content[index] == '-')
                     {
@@ -1108,7 +1700,7 @@ Th - use the value from the graphics state which is the parameter from the relev
                 Console.WriteLine(td_content_clean);
                 var matches = Regex.Matches(td_content_clean, @"-?[0-9]*\.?[0-9]+");
 
-                Td.Tc = float.Parse(tc_content.Replace(" ",""));
+                Td.Tc = float.Parse(tc_content.Replace(" ", ""));
                 Td.td_x = float.Parse(matches[0].Value);
                 Td.td_y = float.Parse(matches[1].Value);
                 Console.WriteLine(Td.td_x);
@@ -1545,6 +2137,8 @@ Th - use the value from the graphics state which is the parameter from the relev
 
             string stream_length = read_stream_length(pages_object, "/Length");
 
+            //Console.WriteLine(pages_object);
+            //Console.WriteLine(stream_length);
 
             if (stream_length.Length >= "0 0 R".Length || int.Parse(stream_length) > 0)
             {
@@ -1555,7 +2149,7 @@ Th - use the value from the graphics state which is the parameter from the relev
                 if (content[stream_start] == '\n')
                 {
                     stream_start = line_number + search_position_from_content(pages_object, "stream") + "stream".Length + 1;
-                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 2; //2 is for "/r\n"
+                    stream_end = line_number + search_position_from_content(pages_object, "endstream") - 1; //2 is for "/r\n"
                 }
                 else if (content[stream_start] == '\r')
                 {
@@ -1565,13 +2159,44 @@ Th - use the value from the graphics state which is the parameter from the relev
 
 
                 int length_stream = stream_end - stream_start;
-
                 memory_stream.Position = stream_start;
 
                 byte[] byte_stream = new byte[length_stream];
-
-
                 memory_stream.Read(byte_stream, 0, length_stream);
+
+                /*
+                int start = 0;
+                while ((byte_stream[start] == 0x0a) | (byte_stream[start] == 0x0d)) start++; // skip trailling cr, lf
+
+                Console.WriteLine("========start=========");
+                Console.WriteLine(start);
+
+
+                byte[] tempdata = new byte[byte_stream.Length - start];
+                Array.Copy(byte_stream, start, tempdata, 0, byte_stream.Length - start);
+
+                MemoryStream msInput = new MemoryStream(byte_stream);
+                MemoryStream msOutput = new MemoryStream();
+
+                Console.WriteLine("====================msInput======================");
+                Console.WriteLine(msInput.Length);
+                Console.WriteLine(msInput.Position);
+                try
+                {
+                    GZipStream decomp = new GZipStream(msInput, CompressionMode.Decompress);
+                    decomp.CopyTo(msOutput);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+
+                string output_result = Encoding.ASCII.GetString(msOutput.ToArray());
+                Console.WriteLine("====================msOutput======================");
+                Console.WriteLine(msOutput.Length);
+                Console.WriteLine(msOutput.Position);
+                //*/
+
 
                 var outputStream = new MemoryStream();
                 using var compressedStream = new MemoryStream(byte_stream);
@@ -1580,6 +2205,57 @@ Th - use the value from the graphics state which is the parameter from the relev
                 outputStream.Position = 0;
                 string output_result = Encoding.Default.GetString(outputStream.ToArray());
 
+
+                /*
+                using (outputStream = new MemoryStream())
+                {
+                    using (var compressedDataStream = new MemoryStream(byte_stream))
+                    {
+                        // Remove the first two bytes to skip the header (it isn't recognized by the DeflateStream class)
+                        compressedDataStream.ReadByte();
+                        compressedDataStream.ReadByte();
+
+                        var deflateStream = new DeflateStream(compressedDataStream, CompressionMode.Decompress, true);
+
+                        var decompressedBuffer = new byte[1024];
+                        int read;
+                        while ((read = deflateStream.Read(decompressedBuffer, 0, decompressedBuffer.Length)) != 0)
+                        {
+                            outputStream.Write(decompressedBuffer, 0, read);
+                        }
+                        outputStream.Flush();
+                        compressedDataStream.Close();
+                    }
+                    outputStream.Position = 0;
+                    output_result = Encoding.Default.GetString(outputStream.ToArray());
+
+                }
+                //*/
+
+
+                /*
+                Console.WriteLine("====================new[start]======================");
+                for (int i = 0; i < data.Length; i++)
+                {
+                    Console.Write(data[i]);
+                }
+                Console.WriteLine("====================new[end]======================");
+                //*/
+
+
+                /*
+                //jump 2 bytes of the stream 
+                byte[] cutinput = new byte[byte_stream.Length - 2];
+                Array.Copy(byte_stream, 2, cutinput, 0, cutinput.Length);
+
+                MemoryStream stream_output = new MemoryStream();
+                using (MemoryStream compressStream = new MemoryStream(cutinput))
+                using (DeflateStream decompressor = new DeflateStream(compressStream, CompressionMode.Decompress))
+                    decompressor.CopyTo(stream_output);
+                //string output_result = Encoding.ASCII.GetString(stream_output.ToArray());
+                //*/
+
+                //string output_result = "";
                 Console.WriteLine("==========output_result[start][in_read_content]===========");
                 Console.WriteLine(object_index);
                 Console.WriteLine(output_result);
@@ -1589,6 +2265,7 @@ Th - use the value from the graphics state which is the parameter from the relev
             }
 
             return null;
+
         }
 
         public MemoryStream make_font(MemoryStream memory_stream, string content, Dictionary<string, string> xref, string object_index)

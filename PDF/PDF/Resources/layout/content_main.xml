@@ -24,7 +24,7 @@
         android:id="@+id/linearLayout1">
     <skiasharp.views.android.SKCanvasView
         android:layout_width="match_parent"
-        android:layout_height="1800px"
+        android:layout_height="2200px"
         android:id="@+id/canvasView" />
     </LinearLayout>
 </ScrollView>
