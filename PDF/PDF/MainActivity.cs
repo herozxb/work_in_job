@@ -2129,10 +2129,6 @@ Th - use the value from the graphics state which is the parameter from the relev
         {
 
             int line_number = int.Parse(xref[object_index].Split(" ")[0]);
-
-            //Console.WriteLine("==========line_number==========");
-            //Console.WriteLine(line_number);
-
             string pages_object = read_obj(content, line_number);
 
             string stream_length = read_stream_length(pages_object, "/Length");
