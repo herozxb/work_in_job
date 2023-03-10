@@ -229,6 +229,7 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pre;
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr map;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_filtered;
   
   Eigen::Matrix4f Ti;
 public:
@@ -440,11 +441,7 @@ public:
 	//pub_history_keyframes_.publish(msg_second);    
 
 
-	cout<<"==================map====================="<<endl;
-	pcl::toROSMsg(*map, *msg_second);
-	msg_second->header.stamp.fromSec(0);
-	msg_second->header.frame_id = "map";
-	pub_icp_keyframes_.publish(msg_second);  
+
 
 
 	cout<<"==================FinalTransformation====================="<<endl;
@@ -457,6 +454,23 @@ public:
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_history_keyframes_.publish(msg_second);  
+	
+	cout<<"==================map====================="<<endl;
+	
+	
+	// Create the filtering object
+	pcl::VoxelGrid<pcl::PointXYZ> sor;
+	sor.setInputCloud (map);
+	sor.setLeafSize (0.1f, 0.1f, 0.1f);
+	sor.filter (*map);
+	
+	
+	*map += *output;
+	
+	pcl::toROSMsg(*map, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_icp_keyframes_.publish(msg_second);  
 
     }
     
