@@ -229,7 +229,8 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pre;
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr map;
-
+  
+  Eigen::Matrix4f Ti;
 public:
 
   LM(ros::NodeHandle nh) : nh_(nh)
@@ -378,6 +379,8 @@ public:
     
     cloud_pre.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    
+    Ti = Eigen::Matrix4f::Identity ();
   }
   
   
@@ -386,7 +389,7 @@ public:
   void main_callback(const sensor_msgs::PointCloud2ConstPtr &msg)
   {
   
-  /*
+  
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZ>(5,1));
     //PointCloudT::Ptr cloud_in(new PointCloudT());
     pcl::fromROSMsg(*msg, *cloud_in);
@@ -397,52 +400,65 @@ public:
     	*map = *cloud_in;
     	counter++;
     }
+    else
+    {
 
-    // remove the NaN points and remove the points out of distance
-    std::vector<int> indices;
-    pcl::removeNaNFromPointCloud(*cloud_in, *cloud_in, indices);
-    
-    
-    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    icp.setInputSource(cloud_pre);
-    icp.setInputTarget(cloud_in);
-    pcl::PointCloud<pcl::PointXYZ> Final;
-    icp.align(Final);
-    std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
-    std::cout << icp.getFinalTransformation() << std::endl;
-    
-    
-    /////////////////////////////////////// publish the raw could map ///////////////////////////////////////////////////
-    sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
-    cout<<"==================cloud_in====================="<<endl;
-    pcl::toROSMsg(*cloud_in, *msg_second);
-    msg_second->header.stamp.fromSec(0);
-    msg_second->header.frame_id = "map";
-    pub_cloud_surround_.publish(msg_second);
-    
-    
-    cout<<"==================cloud_out====================="<<endl;
-    pcl::toROSMsg(*cloud_pre, *msg_second);
-    msg_second->header.stamp.fromSec(0);
-    msg_second->header.frame_id = "map";
-    pub_recent_keyframes_.publish(msg_second); 
-    
-    
-    cout<<"==================Final====================="<<endl;
-    pcl::toROSMsg(Final, *msg_second);
-    msg_second->header.stamp.fromSec(0);
-    msg_second->header.frame_id = "map";
-    pub_history_keyframes_.publish(msg_second);    
-    
-    
-    cout<<"==================map====================="<<endl;
-    pcl::toROSMsg(*map, *msg_second);
-    msg_second->header.stamp.fromSec(0);
-    msg_second->header.frame_id = "map";
-    pub_icp_keyframes_.publish(msg_second);  
-    
-    
-    
+	// remove the NaN points and remove the points out of distance
+	std::vector<int> indices;
+	pcl::removeNaNFromPointCloud(*cloud_in, *cloud_in, indices);
+
+
+	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+	icp.setInputSource(cloud_in);
+	icp.setInputTarget(cloud_pre);
+	pcl::PointCloud<pcl::PointXYZ> Final;
+	icp.align(Final);
+	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	std::cout << icp.getFinalTransformation() << std::endl;
+
+
+	/////////////////////////////////////// publish the raw could map ///////////////////////////////////////////////////
+	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
+	cout<<"==================cloud_in====================="<<endl;
+	pcl::toROSMsg(*cloud_in, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_cloud_surround_.publish(msg_second);
+
+
+	cout<<"==================cloud_out====================="<<endl;
+	pcl::toROSMsg(*cloud_pre, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_recent_keyframes_.publish(msg_second); 
+
+
+	//cout<<"==================Final====================="<<endl;
+	//pcl::toROSMsg(Final, *msg_second);
+	//msg_second->header.stamp.fromSec(0);
+	//msg_second->header.frame_id = "map";
+	//pub_history_keyframes_.publish(msg_second);    
+
+
+	cout<<"==================map====================="<<endl;
+	pcl::toROSMsg(*map, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_icp_keyframes_.publish(msg_second);  
+
+
+	cout<<"==================FinalTransformation====================="<<endl;
+	Ti = icp.getFinalTransformation () * Ti;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr output (new pcl::PointCloud<pcl::PointXYZ>(5,1));
+	pcl::transformPointCloud (*cloud_in, *output, Ti);    
+
+
+	pcl::toROSMsg(*output, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_history_keyframes_.publish(msg_second);  
+
+    }
     
     *cloud_pre = *cloud_in;
   
@@ -648,9 +664,10 @@ public:
 
     //*/
 
+/*
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    icp.setInputSource(cloud_in);
-    icp.setInputTarget(cloud_out);
+    icp.setInputSource(cloud_out);
+    icp.setInputTarget(cloud_in);
     pcl::PointCloud<pcl::PointXYZ> Final;
     icp.align(Final);
     std::cout << "has converged:" << icp.hasConverged() << " score: " <<
@@ -674,12 +691,56 @@ public:
     msg->header.frame_id = "map";
     pub_recent_keyframes_.publish(msg);    
     
-    cout<<"==================Final====================="<<endl;
-    pcl::toROSMsg(Final, *msg);
+    //cout<<"==================Final====================="<<endl;
+    //pcl::toROSMsg(Final, *msg);
+    //msg->header.stamp.fromSec(0);
+    //msg->header.frame_id = "map";
+    //pub_history_keyframes_.publish(msg);   
+    
+    
+    
+    Ti = icp.getFinalTransformation () * Ti;
+    
+    pcl::PointCloud<pcl::PointXYZ>::Ptr output (new pcl::PointCloud<pcl::PointXYZ>(5,1));
+    //pcl::transformPointCloud (*cloud_out, *output, icp.getFinalTransformation());
+    pcl::transformPointCloud (*cloud_out, *output, Ti);    
+    
+    cout<<"==================FinalTransformation====================="<<endl;
+    pcl::toROSMsg(*output, *msg);
     msg->header.stamp.fromSec(0);
     msg->header.frame_id = "map";
-    pub_history_keyframes_.publish(msg);       
+    pub_history_keyframes_.publish(msg);   
+    
+    
+        
 //*/
+
+    //odometry to laser
+    //t_odom2laser_(0) = msg->pose.pose.position.x;
+    //t_odom2laser_(1) = msg->pose.pose.position.y;
+    //t_odom2laser_(2) = msg->pose.pose.position.z;
+    //q_odom2laser_.w() = msg->pose.pose.orientation.w;
+    //q_odom2laser_.x() = msg->pose.pose.orientation.x;
+    //q_odom2laser_.y() = msg->pose.pose.orientation.y;
+    //q_odom2laser_.z() = msg->pose.pose.orientation.z;
+    
+    
+    //t_map2odom_(0) = 0;
+    //t_map2odom_(1) = 0;
+    //t_map2odom_(2) = 0;
+            
+    //q_map2odom_.x() = 0;
+    //q_map2odom_.y() = 0;
+    //q_map2odom_.z() = 0;
+    //q_map2odom_.w() = 1;
+    
+    //map to laser
+    //t_map2laser_ = q_map2odom_ * t_odom2laser_ + t_map2odom_;
+    //q_map2laser_ = q_map2odom_ * q_odom2laser_;
+
+
+
+
   }
 
   void transformUpdate()
