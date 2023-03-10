@@ -11,6 +11,7 @@
 #include <gtsam/nonlinear/ISAM2.h>
 
 #include <pcl/filters/filter.h>
+#include <pcl/filters/crop_box.h>
 
 #include <boost/interprocess/shared_memory_object.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -466,6 +467,19 @@ public:
 	
 	
 	*map += *output;
+	
+	
+	pcl::CropBox<pcl::PointXYZ> boxFilter;
+	float x_min = -50, y_min = -50, z_min = -5;
+	float x_max = +50, y_max = +50, z_max = +5;
+	
+	boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
+	boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
+
+	boxFilter.setInputCloud(map);
+	boxFilter.filter(*map);
+	
+	
 	
 	pcl::toROSMsg(*map, *msg_second);
 	msg_second->header.stamp.fromSec(0);
