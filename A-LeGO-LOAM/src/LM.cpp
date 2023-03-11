@@ -414,7 +414,7 @@ public:
     {
     	*map_final = *cloud_in;
     	*map_fixed = *cloud_in;
-    	counter++;
+    	
     }
     else
     {
@@ -555,14 +555,38 @@ public:
 	pcl::transformPointCloud (*cloud_in, *output, Ti_real);    
 
 
-	pcl::toROSMsg(*output, *msg_second);
-	msg_second->header.stamp.fromSec(0);
-	msg_second->header.frame_id = "map";
-	pub_history_keyframes_.publish(msg_second); 
+	//pcl::toROSMsg(*output, *msg_second);
+	//msg_second->header.stamp.fromSec(0);
+	//msg_second->header.frame_id = "map";
+	//pub_history_keyframes_.publish(msg_second); 
 	//*/
 	
 	//*map_final += *output;
 	//*map_fixed += *output;
+	
+	// hsitory and icp renew
+	
+	
+	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_final_and_map;
+	icp_final_and_map.setInputSource(output);
+	icp_final_and_map.setInputTarget(map_final);
+	//pcl::PointCloud<pcl::PointXYZ> Final;
+	icp_final_and_map.align(Final);
+	std::cout << "has converged:" << icp_final_and_map.hasConverged() << " score: " << icp_final_and_map.getFitnessScore() << std::endl;
+	std::cout << icp_final_and_map.getFinalTransformation() << std::endl;
+	
+	 
+	cout<<"==================Final====================="<<endl;
+	pcl::toROSMsg(Final, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_history_keyframes_.publish(msg_second);   
+	
+	if( counter % 7 == 0 )
+        {
+            *map_final = Final;
+	    *map_fixed = Final;
+	}
 	
 	/*
 	cout<<"==================FinalTransformation_of_map_directly====================="<<endl;
@@ -589,6 +613,8 @@ public:
 	
 
     }
+    
+    counter++;
     
     *cloud_pre = *cloud_in;
   
