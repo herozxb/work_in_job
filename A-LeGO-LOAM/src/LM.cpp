@@ -230,8 +230,10 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pre;
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr map;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_filtered;
-  
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_local;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_fixed;
+    
   Eigen::Matrix4f Ti;
 public:
 
@@ -381,6 +383,10 @@ public:
     
     cloud_pre.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_local.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_local.reset(new pcl::PointCloud<pcl::PointXYZ>);    
+    map_fixed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
     
     Ti = Eigen::Matrix4f::Identity ();
   }
@@ -399,7 +405,8 @@ public:
 
     if( counter == 0 )
     {
-    	*map = *cloud_in;
+    	*map_final = *cloud_in;
+    	*map_fixed = *cloud_in;
     	counter++;
     }
     else
@@ -461,27 +468,32 @@ public:
 	
 	// Create the filtering object
 	pcl::VoxelGrid<pcl::PointXYZ> sor;
-	sor.setInputCloud (map);
+	sor.setInputCloud (map_final);
 	sor.setLeafSize (0.1f, 0.1f, 0.1f);
-	sor.filter (*map);
+	sor.filter (*map_final);
 	
 	
-	*map += *output;
+	//*map_final += *output;
+	
+	cout<<Ti(0,3)<<endl;
+	cout<<Ti(1,3)<<endl;
+	cout<<Ti(2,3)<<endl;
 	
 	
 	pcl::CropBox<pcl::PointXYZ> boxFilter;
-	float x_min = -50, y_min = -50, z_min = -5;
-	float x_max = +50, y_max = +50, z_max = +5;
+	float x_min = Ti(0,3) - 20, y_min = Ti(1,3) - 20, z_min = Ti(2,3) - 5;
+	float x_max = Ti(0,3) + 20, y_max = Ti(1,3) + 20, z_max = Ti(2,3) + 5;
 	
 	boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
 	boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
-	boxFilter.setInputCloud(map);
-	boxFilter.filter(*map);
+	boxFilter.setInputCloud(map_final);
+	boxFilter.filter(*map_local);
+	
+	*map_final = *map_fixed;
 	
 	
-	
-	pcl::toROSMsg(*map, *msg_second);
+	pcl::toROSMsg(*map_local, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_icp_keyframes_.publish(msg_second);  
