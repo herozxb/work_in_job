@@ -399,6 +399,7 @@ public:
   
   
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZ>(5,1));
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_for_cropbox (new pcl::PointCloud<pcl::PointXYZ>(5,1));
     //PointCloudT::Ptr cloud_in(new PointCloudT());
     pcl::fromROSMsg(*msg, *cloud_in);
     // ROS_INFO("cloud_in size: %d", cloud_in->points.size());
@@ -415,6 +416,21 @@ public:
 	// remove the NaN points and remove the points out of distance
 	std::vector<int> indices;
 	pcl::removeNaNFromPointCloud(*cloud_in, *cloud_in, indices);
+	
+	
+	cout<<"==================cropbox_cloud_in====================="<<endl;
+	*cloud_in_for_cropbox = *cloud_in;
+	
+        pcl::CropBox<pcl::PointXYZ> boxFilter_for_in;
+	float x_min_for_in = - 20, y_min_for_in = - 20, z_min_for_in = - 20;
+	float x_max_for_in = + 20, y_max_for_in = + 20, z_max_for_in = + 20;
+	
+	boxFilter_for_in.setMin(Eigen::Vector4f(x_min_for_in, y_min_for_in, z_min_for_in, 1.0));
+	boxFilter_for_in.setMax(Eigen::Vector4f(x_max_for_in, y_max_for_in, z_max_for_in, 1.0));
+
+	boxFilter_for_in.setInputCloud(cloud_in_for_cropbox);
+	boxFilter_for_in.filter(*cloud_in_for_cropbox);
+	
 
 
 	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -429,7 +445,7 @@ public:
 	/////////////////////////////////////// publish the raw could map ///////////////////////////////////////////////////
 	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
 	cout<<"==================cloud_in====================="<<endl;
-	pcl::toROSMsg(*cloud_in, *msg_second);
+	pcl::toROSMsg(*cloud_in_for_cropbox, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_cloud_surround_.publish(msg_second);
@@ -481,8 +497,8 @@ public:
 	
 	
 	pcl::CropBox<pcl::PointXYZ> boxFilter;
-	float x_min = Ti(0,3) - 20, y_min = Ti(1,3) - 20, z_min = Ti(2,3) - 5;
-	float x_max = Ti(0,3) + 20, y_max = Ti(1,3) + 20, z_max = Ti(2,3) + 5;
+	float x_min = Ti(0,3) - 20, y_min = Ti(1,3) - 20, z_min = Ti(2,3) - 20;
+	float x_max = Ti(0,3) + 20, y_max = Ti(1,3) + 20, z_max = Ti(2,3) + 20;
 	
 	boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
 	boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
