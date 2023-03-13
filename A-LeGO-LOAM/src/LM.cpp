@@ -17,15 +17,8 @@
 #include <boost/interprocess/mapped_region.hpp>
 
 using namespace boost::interprocess;
-
-
-double step_x = 0.0;
-double step_y = 0.0;
-double step_z = 0.0;
-
 using namespace std;
 using namespace gtsam;
-
 
 #include <iostream>
 #include <stdint.h>
@@ -43,12 +36,10 @@ static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter;
 static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter_x;
 static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter_y;
 static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter_z;
-void executeCorrectionStep();
-
-const int N = 200; // Number of points
 
 double x = 0;
 double y = 0;
+double z = 0;
 
 class LM
 {
@@ -482,7 +473,7 @@ public:
 	icp.align(Final);
 	//std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 	//std::cout << icp.getFinalTransformation() << std::endl;
-//*/
+
 
 	/////////////////////////////////////// publish the raw could map ///////////////////////////////////////////////////
 	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
@@ -547,9 +538,6 @@ public:
 	//*map_final += *output;
 	//*map_fixed += *output;
 	
-	//cout<<Ti(0,3)<<endl;
-	//cout<<Ti(1,3)<<endl;
-	//cout<<Ti(2,3)<<endl;
 	
 	
 	pcl::CropBox<pcl::PointXYZ> boxFilter;
@@ -587,6 +575,7 @@ public:
 	Ti_real = Ti_translation * Ti_of_map;
 	Ti_real(0,3) = x;
 	Ti_real(1,3) = y;
+	Ti_real(2,3) = z;
 	
 	
 	pcl::PointCloud<pcl::PointXYZ>::Ptr output (new pcl::PointCloud<pcl::PointXYZ>(5,1));
@@ -620,7 +609,7 @@ public:
 	msg_second->header.frame_id = "map";
 	pub_history_keyframes_.publish(msg_second);   
 	
-	if( counter % 5 == 0 )
+	if( counter % 10 == 0 )
         {
             *map_final = Final;
 	    *map_fixed = Final;
@@ -691,21 +680,6 @@ public:
     
   }
   
-  /*
-  //get the surface information
-  void segmented_cloudHandler(const sensor_msgs::PointCloud2ConstPtr &msg)
-  {
-    laser_segment_->clear();
-    pcl::fromROSMsg(*msg, *laser_segment_);
-    
-    ROS_WARN("===================segment=====================");    
-    //ROS_WARN("%f", laser_segment_[0]);
-    //time_laser_surf_ = msg->header.stamp.toSec();
-    //new_laser_surf_ = true;
-  }
-  
-  //*/
-  
   //get the odometry information
   void laserOdomHandler(const nav_msgs::OdometryConstPtr &msg)
   {
@@ -743,11 +717,6 @@ public:
       msg->pose.pose.orientation.z = q_map2laser_.z();
       pub_odom_aft_mapped_.publish(msg);
     }
-    
-    
-
-    
-    
     
     //publish the transformation
     //tf::Transform tf_m2o;
@@ -961,10 +930,6 @@ public:
     //ROS_WARN("in map [y] : %f", *(i1+1));
     //ROS_WARN("in map [z] : %f", *(i1+2));
   
-    step_x = step_x - *i1;
-    step_y = step_y - *(i1+1);
-    step_z = step_z - *(i1+2);
-  
     // q_0=-0.00666253, q_1=-0.0385051, q_2=0.0329403, q_3=0.998693
     //Quaternion (const tfScalar &x, const tfScalar &y, const tfScalar &z, const tfScalar &w)
     //tf::Quaternion q(*(i1+3), *(i1+4), *(i1+5), *(i1+6));
@@ -1042,7 +1007,7 @@ public:
     matrix_Q << 0.05F;
     
     kf::Matrix<2, 2>  matrix_R { kf::Matrix<2, 2>::Identity() }; // 2x2
-    matrix_R << 1, 0, 0, 0.1;
+    matrix_R << 2, 0, 0, 0.1;
     
     kf::Matrix<2, 1>  matrix_H { kf::Matrix<2, 1>::Random(2,1) };// 2x1
     matrix_H << 1.0F, 1.0F;
@@ -1066,13 +1031,14 @@ public:
     //kalmanfilter_z.predict(matrix_F, matrix_Q );
     //double z = kalmanfilter_z.correct(vector_z_of_z, matrix_R, matrix_H);
 
+    z = this_pose_3d.z;
     nav_msgs::OdometryPtr msg_kalman(new nav_msgs::Odometry);
     msg_kalman->header.stamp.fromSec(time_laser_odom_);
     msg_kalman->header.frame_id = "map";
     msg_kalman->child_frame_id = "/laser";
     msg_kalman->pose.pose.position.x = x;
     msg_kalman->pose.pose.position.y = y;
-    msg_kalman->pose.pose.position.z = this_pose_3d.z;
+    msg_kalman->pose.pose.position.z = z;
     msg_kalman->pose.pose.orientation.w = 1;
     msg_kalman->pose.pose.orientation.x = 0;
     msg_kalman->pose.pose.orientation.y = 0;
@@ -1103,13 +1069,6 @@ public:
     ros::Duration dura(0.01);
     while (ros::ok())
     {
-      
-      //ROS_WARN("================main_loop==================");
-      
-      //////////////////////////////////input_data///////////////////////////////////////
-      //lslidar_point_cloud, all the lidar point
-      //outlier
-      //segmented_cloud
       
       downsampleCurrentScan();
       transformUpdate();
