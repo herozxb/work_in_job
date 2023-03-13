@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /ImageProjection1
-        - /LaserMapping1
+        - /Odometry2
       Splitter Ratio: 0.5
     Tree Height: 455
   - Class: rviz/Selection
@@ -26,7 +26,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: keyposes
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -57,6 +57,10 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        base_link:
+          Value: true
+        odom:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 5
       Name: TF
@@ -595,8 +599,78 @@ Visualization Manager:
           Topic: /odom_aft_mapped
           Unreliable: false
           Value: false
-      Enabled: true
+      Enabled: false
       Name: LaserMapping
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Axes
+      Topic: /odom_aft_mapped_2
+      Unreliable: false
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic: /odom_aft_mapped_3
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -625,7 +699,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 309.7528076171875
+      Distance: 39.4855842590332
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -633,17 +707,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -34.565940856933594
-        Y: -64.15753173828125
-        Z: -28.257286071777344
+        X: 0.8365092277526855
+        Y: -2.72823429107666
+        Z: -27.708974838256836
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.519796371459961
       Target Frame: map
-      Yaw: 1.5308647155761719
+      Yaw: 2.7708659172058105
     Saved: ~
 Window Geometry:
   Displays:
@@ -662,4 +736,4 @@ Window Geometry:
     collapsed: false
   Width: 1842
   X: 78
-  Y: 114
+  Y: 77

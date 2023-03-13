@@ -25,6 +25,26 @@ double step_z = 0.0;
 
 using namespace std;
 using namespace gtsam;
+
+
+#include <iostream>
+#include <stdint.h>
+#include <vector>
+#include <random>
+#include <cmath>
+
+#include "../include/EKF/types.h"
+#include "../include/EKF/kalman_filter.h"
+
+static constexpr size_t DIM_X{ 1 };
+static constexpr size_t DIM_Z{ 2 };
+
+static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter;
+void executeCorrectionStep();
+
+const int N = 200; // Number of points
+
+
 class LM
 {
 private:
@@ -238,6 +258,11 @@ private:
   Eigen::Matrix4f Ti_of_map;
   Eigen::Matrix4f Ti_translation;
   Eigen::Matrix4f Ti_real;
+  
+  
+  ros::Publisher pub_odom_aft_mapped_2;
+  ros::Publisher pub_odom_aft_mapped_3;    
+    
 public:
 
   LM(ros::NodeHandle nh) : nh_(nh)
@@ -395,6 +420,10 @@ public:
     Ti_of_map = Eigen::Matrix4f::Identity ();
     Ti_translation = Eigen::Matrix4f::Identity ();
     Ti_real = Eigen::Matrix4f::Identity ();
+    
+    
+    pub_odom_aft_mapped_2 = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_2", 10);
+    pub_odom_aft_mapped_3 = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_3", 10);
   }
   
   
@@ -424,7 +453,7 @@ public:
 	pcl::removeNaNFromPointCloud(*cloud_in, *cloud_in, indices);
 	
 	
-	cout<<"==================cropbox_cloud_in====================="<<endl;
+	//cout<<"==================cropbox_cloud_in====================="<<endl;
 	*cloud_in_cropbox_for_local = *cloud_in;
 	
         pcl::CropBox<pcl::PointXYZ> boxFilter_for_in;
@@ -444,20 +473,20 @@ public:
 	icp.setInputTarget(cloud_pre);
 	pcl::PointCloud<pcl::PointXYZ> Final;
 	icp.align(Final);
-	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
-	std::cout << icp.getFinalTransformation() << std::endl;
+	//std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	//std::cout << icp.getFinalTransformation() << std::endl;
 //*/
 
 	/////////////////////////////////////// publish the raw could map ///////////////////////////////////////////////////
 	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
-	cout<<"==================cloud_in====================="<<endl;
+	//cout<<"==================cloud_in====================="<<endl;
 	pcl::toROSMsg(*cloud_in_cropbox_for_local, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_cloud_surround_.publish(msg_second);
 
 
-	cout<<"==================cloud_out====================="<<endl;
+	//cout<<"==================cloud_out====================="<<endl;
 	pcl::toROSMsg(*cloud_pre, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
@@ -474,7 +503,7 @@ public:
 
 
 
-	cout<<"==================FinalTransformation====================="<<endl;
+	//cout<<"==================FinalTransformation====================="<<endl;
 	Ti = icp.getFinalTransformation () * Ti;
 	
 	Ti_translation(0,3) = Ti(0,3);
@@ -494,7 +523,7 @@ public:
 	
 	//*/
 	
-	cout<<"==================map====================="<<endl;
+	//cout<<"==================map====================="<<endl;
 	
 	
 	// Create the filtering object
@@ -535,17 +564,17 @@ public:
 	pub_icp_keyframes_.publish(msg_second);  
 	
 	
-	cout<<"==================FinalTransformation_of_map====================="<<endl;
+	//cout<<"==================FinalTransformation_of_map====================="<<endl;
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_for_map;
 	icp_for_map.setInputSource(cloud_in_cropbox_for_local);
 	icp_for_map.setInputTarget(map_local);
 	//pcl::PointCloud<pcl::PointXYZ> Final;
 	icp_for_map.align(Final);
-	std::cout << "has converged:" << icp_for_map.hasConverged() << " score: " << icp_for_map.getFitnessScore() << std::endl;
-	std::cout << icp_for_map.getFinalTransformation() << std::endl;
+	//std::cout << "has converged:" << icp_for_map.hasConverged() << " score: " << icp_for_map.getFitnessScore() << std::endl;
+	//std::cout << icp_for_map.getFinalTransformation() << std::endl;
 	
 	
-	cout<<"==================FinalTransformation====================="<<endl;
+	//cout<<"==================FinalTransformation====================="<<endl;
 	Ti_of_map = icp_for_map.getFinalTransformation (); // * Ti_of_map;
 	
 	Ti_real = Ti_translation * Ti_of_map;
@@ -572,8 +601,8 @@ public:
 	icp_final_and_map.setInputTarget(map_final);
 	//pcl::PointCloud<pcl::PointXYZ> Final;
 	icp_final_and_map.align(Final);
-	std::cout << "has converged:" << icp_final_and_map.hasConverged() << " score: " << icp_final_and_map.getFitnessScore() << std::endl;
-	std::cout << icp_final_and_map.getFinalTransformation() << std::endl;
+	//std::cout << "has converged:" << icp_final_and_map.hasConverged() << " score: " << icp_final_and_map.getFitnessScore() << std::endl;
+	//std::cout << icp_final_and_map.getFinalTransformation() << std::endl;
 	
 	 
 	cout<<"==================Final====================="<<endl;
@@ -582,7 +611,7 @@ public:
 	msg_second->header.frame_id = "map";
 	pub_history_keyframes_.publish(msg_second);   
 	
-	if( counter % 7 == 0 )
+	if( counter % 5 == 0 )
         {
             *map_final = Final;
 	    *map_fixed = Final;
@@ -621,7 +650,130 @@ public:
   //*/
   
   
+    executeCorrectionStep( );  
+    
+    
+  
   }
+    
+
+
+vector<double> generate_signal( double bias, double variance )
+{
+    
+    // Define sine wave parameters
+    const double freq = 1.0; // Frequency in Hz
+    const double amplitude = 1.0; // Amplitude of sine wave
+    const double phase = 0;//M_PI / 4; // Phase of sine wave
+
+    // Define noise parameters
+    const double mean = 0.0; // Mean of noise
+    //const double variance = 0.1; // Variance of noise
+
+    // Define time vector
+    // const int N = 1000; // Number of points
+    const double dt = 0.01; // Time step
+    vector<double> t(N);
+    for (int i = 0; i < N; i++) {
+        t[i] = i * dt;
+    }
+
+    // Generate sine wave with added noise
+    vector<double> x(N);
+    default_random_engine generator;
+    normal_distribution<double> distribution(mean, sqrt(variance));
+    for (int i = 0; i < N; i++) {
+        x[i] = amplitude * sin(2.0 * M_PI * freq * t[i] + phase) + distribution(generator) + bias ;
+    }
+
+    // Print generated points
+    //for (int i = 0; i < N; i++) {
+    //    cout << t[i] << "," << x[i] << endl;
+    //}
+
+    //cout<<"==================================================="<<endl;
+    
+    return x;
+}
+
+void executeCorrectionStep()
+{
+
+    std::cout<<"======================kalmanfilter============================="<<std::endl;
+    kalmanfilter.vector_x() << 1.0F;
+    kalmanfilter.matrix_P() << 1.0F;
+
+    vector<double> x_1(N);
+    vector<double> x_2(N);
+    
+    double bias_1 = -3;
+    double bias_2 = 3;
+    double variance_1 = 0.1;
+    double variance_2 = 0.5;
+    
+    x_1 = generate_signal(  bias_1, variance_1 );
+    x_2 = generate_signal(  bias_2, variance_2 );
+    
+    kf::Matrix<1, 1>  matrix_F{ kf::Matrix<1, 1>::Identity() };  // 1x1
+    matrix_F << 1.0F;
+    
+    kf::Matrix<1, 1>  matrix_Q{ kf::Matrix<1, 1>::Identity() };  // 1x1
+    matrix_Q << 0.05F;
+    
+    kf::Matrix<2, 2>  matrix_R { kf::Matrix<2, 2>::Identity() }; // 2x2
+    matrix_R << variance_1, 0, 0, variance_2;
+    
+    kf::Matrix<2, 1>  matrix_H { kf::Matrix<2, 1>::Random(2,1) };// 2x1
+    matrix_H << 1.0F, 1.0F;
+    
+    double signal_data_1[N] = {0}; 
+    double signal_data_2[N] = {0}; 
+    double signal_data_3[N] = {0}; 
+    
+    for(int i =0; i< N; i++ )
+    {
+
+        const kf::Vector<2> vector_z { x_1[i], x_2[i] };
+        
+    	kalmanfilter.predict(matrix_F, matrix_Q );
+    	//kalmanfilter.correct(vector_z, matrix_R, matrix_H);
+    	
+    	signal_data_1[i] = x_1[i];
+    	signal_data_2[i] = x_2[i];
+    	
+    	if( i < N /2 )
+    	{
+    	    signal_data_3[i] = kalmanfilter.correct(vector_z, matrix_R, matrix_H);
+    	}
+    	else
+    	{
+    	    matrix_R << variance_2, 0, 0, variance_1;
+    	    signal_data_3[i] = kalmanfilter.correct(vector_z, matrix_R, matrix_H);
+    	}
+    }
+    std::vector<double> x(N), y1(x.size()), y2(x.size()), y3(x.size());
+    const double dt = 0.01; // Time step
+    
+    for (size_t i = 0; i < x.size(); i++) {
+        x[i] = i * dt;
+	y1[i] = signal_data_1[i];
+	y2[i] = signal_data_2[i];
+	y3[i] = signal_data_3[i];
+	
+	//std::cout<<signal_data_3[i]<<std::endl;
+    }
+    
+    //auto axes = CvPlot::makePlotAxes();
+
+
+    //axes.create<CvPlot::Series>(x, y1, "-r");
+    //axes.create<CvPlot::Series>(x, y2, "-b");
+    //axes.create<CvPlot::Series>(x, y3, "-g");       
+    
+    //CvPlot::show("kelman filter", axes);
+
+}
+    
     
   //get the surface information
   void surfLastHandler(const sensor_msgs::PointCloud2ConstPtr &msg)
@@ -707,6 +859,11 @@ public:
       pub_odom_aft_mapped_.publish(msg);
     }
     
+    
+
+    
+    
+    
     //publish the transformation
     //tf::Transform tf_m2o;
     //tf_m2o.setOrigin(tf::Vector3(t_map2odom_.x(), t_map2odom_.y(), t_map2odom_.z()));
@@ -753,6 +910,7 @@ public:
     ds_surf_.filter(*laser_surf_total_ds_);
     
     
+    /*
     ROS_INFO("downsampleCurrentScan: %.3fms", t_ds.toc());
     ROS_INFO("before downsample: corner size %d, surf size %d", laser_corner_->points.size(), laser_surf_total_->points.size() + laser_outlier_->points.size());
     ROS_INFO("after downsample: corner size %d, surf size %d", laser_corner_ds_->points.size(), laser_surf_total_ds_->points.size());
@@ -783,6 +941,7 @@ public:
                 << " "    << point.z << std::endl;
     //*/
     
+    /*
     if (pcl::io::loadPCDFile<pcl::PointXYZ> ("/home/deep/catkin_ws/src/work_in_job/A-LeGO-LOAM/000050.pcd", *cloud_out) == -1) //* load the file
     {
       PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
@@ -793,7 +952,8 @@ public:
     pcl::removeNaNFromPointCloud(*cloud_out, *output_cloud_2, indices);
 
     cloud_out = output_cloud_2;
-
+    //*/
+    
     // Fill in the CloudIn data
     //for (auto& point : *cloud_in)
     //{
@@ -802,7 +962,7 @@ public:
     //    point.z = 1024 * rand() / (RAND_MAX + 1.0f);
     //}
 
-    std::cout << "Saved " << cloud_in->size () << " data points to input:" << std::endl;
+    //std::cout << "Saved " << cloud_in->size () << " data points to input:" << std::endl;
 
     //for (auto& point : *cloud_in)
     //    std::cout << point << std::endl;
@@ -906,8 +1066,8 @@ public:
     shared_memory_object shdmem(open_or_create, "Boost", read_write);
     shdmem.truncate(1024);
     mapped_region region(shdmem, read_write);
-    std::cout << std::hex << region.get_address() << std::endl;
-    std::cout << std::dec << region.get_size() << std::endl;
+    //std::cout << std::hex << region.get_address() << std::endl;
+    //std::cout << std::dec << region.get_size() << std::endl;
     double* i1 = static_cast<double*>(region.get_address());
 
 
@@ -955,6 +1115,42 @@ public:
     // get the odometry to laser to the map to odometry, by map to laser of R and T
     q_map2odom_ = q_map2laser_ * q_odom2laser_.inverse();
     t_map2odom_ = t_map2laser_ - q_map2odom_ * t_odom2laser_;
+    
+    
+    
+    //cout<<"=============================Odometry================================"<<endl;
+    //cout<< Ti_real <<endl;
+    
+    nav_msgs::OdometryPtr msg_2(new nav_msgs::Odometry);
+    msg_2->header.stamp.fromSec(time_laser_odom_);
+    msg_2->header.frame_id = "map";
+    msg_2->child_frame_id = "/laser";
+    msg_2->pose.pose.position.x = Ti_real(0,3);
+    msg_2->pose.pose.position.y = Ti_real(1,3);
+    msg_2->pose.pose.position.z = Ti_real(2,3);
+    msg_2->pose.pose.orientation.w = 1;
+    msg_2->pose.pose.orientation.x = 0;
+    msg_2->pose.pose.orientation.y = 0;
+    msg_2->pose.pose.orientation.z = 0;
+    pub_odom_aft_mapped_2.publish(msg_2);
+    
+    //cout<<"=============================Odometry_2================================"<<endl;
+
+    nav_msgs::OdometryPtr msg_3(new nav_msgs::Odometry);
+    msg_3->header.stamp.fromSec(time_laser_odom_);
+    msg_3->header.frame_id = "map";
+    msg_3->child_frame_id = "/laser";
+    msg_3->pose.pose.position.x = this_pose_3d.x;
+    msg_3->pose.pose.position.y = this_pose_3d.y;
+    msg_3->pose.pose.position.z = this_pose_3d.z;
+    msg_3->pose.pose.orientation.w = 1;
+    msg_3->pose.pose.orientation.x = 0;
+    msg_3->pose.pose.orientation.y = 0;
+    msg_3->pose.pose.orientation.z = 0;
+    pub_odom_aft_mapped_3.publish(msg_3);
+    
+    
+    
   }
 
   //publish the message

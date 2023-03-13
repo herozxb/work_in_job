@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(alego)
 
 set(CMAKE_BUILD_TYPE "Release")
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -61,5 +61,5 @@ add_executable(LO src/LO.cpp)
 target_link_libraries(LO ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 add_executable(LM src/LM.cpp)
-target_link_libraries(LM ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} gtsam)
+target_link_libraries(LM ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} rt gtsam)
 

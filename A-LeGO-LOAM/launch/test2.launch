@@ -5,7 +5,7 @@
 
   <node pkg="alego" type="IP" name="IP" />
 
-  <node pkg="alego" type="LO" name="LO" output="screen">
+  <node pkg="alego" type="LO" name="LO" output="log">
     <!-- <remap from="/segmented_cloud" to="/segmented_cloud" />
     <remap from="/seg_info" to="/segmented_cloud_info" />
     <remap from="/outlier" to="/outlier_cloud" /> -->
