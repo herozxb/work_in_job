@@ -492,7 +492,7 @@ public:
           }
           else
           {
-            ROS_WARN("few surf correspondance");
+            //ROS_WARN("few surf correspondance");
           }
           t_data.tic();
           for (int j = 0; j < sharp->points.size(); ++j)
@@ -556,7 +556,7 @@ public:
           {
             if (corner_correspondance <= 50)
             {
-              ROS_WARN("corner correspondance <= 50");
+              //ROS_WARN("corner correspondance <= 50");
             }
             TicToc t_solver;
             ceres::Solver::Options options;
@@ -570,7 +570,7 @@ public:
           }
           else
           {
-            ROS_WARN("few corner correspondance");
+            //ROS_WARN("few corner correspondance");
           }
           ROS_INFO("total opt time: %.3fms", t_opt.toc());
           static double t_total = 0.;

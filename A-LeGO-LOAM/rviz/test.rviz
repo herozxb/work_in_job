@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /ImageProjection1
+        - /LaserMapping1
+        - /LaserMapping1/4.icp_output_of_map_final1
         - /Odometry_ORB31/Shape1
       Splitter Ratio: 0.5
     Tree Height: 455
@@ -26,7 +28,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: 1.input_right_now_frame
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -376,7 +378,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
@@ -391,7 +393,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -401,14 +403,14 @@ Visualization Manager:
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
-          Color: 255; 255; 255
+          Color: 193; 125; 17
           Color Transformer: FlatColor
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
-          Name: laser_cloud_surround
+          Name: 1.input_right_now_frame
           Position Transformer: XYZ
           Queue Size: 10
           Selectable: true
@@ -492,7 +494,7 @@ Visualization Manager:
           Invert Rainbow: false
           Max Color: 85; 85; 255
           Min Color: 0; 0; 0
-          Name: recent_keyframes
+          Name: 2.last_frame
           Position Transformer: XYZ
           Queue Size: 10
           Selectable: true
@@ -513,14 +515,14 @@ Visualization Manager:
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
-          Color: 255; 0; 0
+          Color: 138; 226; 52
           Color Transformer: FlatColor
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
-          Name: icp_keyframe
+          Name: 3.map_final
           Position Transformer: XYZ
           Queue Size: 10
           Selectable: true
@@ -541,14 +543,14 @@ Visualization Manager:
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
-          Color: 138; 226; 52
+          Color: 239; 41; 41
           Color Transformer: FlatColor
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
-          Name: history_keyframes
+          Name: 4.icp_output_of_map_final
           Position Transformer: XYZ
           Queue Size: 10
           Selectable: true
@@ -595,7 +597,7 @@ Visualization Manager:
           Topic: /odom_aft_mapped
           Unreliable: false
           Value: false
-      Enabled: false
+      Enabled: true
       Name: LaserMapping
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
@@ -730,7 +732,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 42.843170166015625
+      Distance: 74.89321899414062
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -738,17 +740,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.2634429931640625
-        Y: -2.597106695175171
-        Z: -27.595935821533203
+        X: 27.35715103149414
+        Y: 0.027283571660518646
+        Z: -17.40275001525879
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.519796371459961
+      Pitch: 0.7997971773147583
       Target Frame: map
-      Yaw: 2.7708659172058105
+      Yaw: 3.375878095626831
     Saved: ~
 Window Geometry:
   Displays:

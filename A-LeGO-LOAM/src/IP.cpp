@@ -177,8 +177,8 @@ public:
       }
       if (row_id < 0 || row_id >= N_SCAN)
       {
-        ROS_WARN("error row_id");
-        continue;
+        //ROS_WARN("error row_id");
+        //continue;
       }
 
       horizon_ang = RAD2ANGLE(-atan2(p.y, p.x) + 2 * M_PI);
