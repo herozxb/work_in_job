@@ -621,7 +621,7 @@ public:
 	if( counter % 10 == 0 )
         {
         
-
+	    /*
             // Initializing Normal Distributions Transform (NDT).
             pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
 
@@ -659,7 +659,7 @@ public:
  	    pcl::transformPointCloud (*Final_translate, *output_cloud, ndt.getFinalTransformation ());
 
 	    
-	    
+	    //*/
 	    
             pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_map;
 	    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_for_add_to_map_final;
@@ -671,15 +671,21 @@ public:
             std::cout << "============icp==============" <<std::endl;
             std::cout << icp_for_add_to_map_final.getFinalTransformation () <<std::endl;
             
-            *map_final += Final_for_add_to_map;
-	    //*map_fixed += Final;
-	    
-	    //cout<<"==================Final====================="<<endl;
-	    //green is the output and map_final icp result
-	    pcl::toROSMsg(*output_cloud, *msg_second);
-	    msg_second->header.stamp.fromSec(0);
-	    msg_second->header.frame_id = "map";
-	    pub_history_keyframes_.publish(msg_second);   
+            if( abs( icp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9  )
+            {
+            
+		Ti = icp_for_add_to_map_final.getFinalTransformation () * Ti;
+
+		*map_final += Final_for_add_to_map;
+		//*map_fixed += Final;
+
+		//cout<<"==================Final====================="<<endl;
+		//green is the output and map_final icp result
+		pcl::toROSMsg(Final_for_add_to_map, *msg_second);
+		msg_second->header.stamp.fromSec(0);
+		msg_second->header.frame_id = "map";
+		pub_history_keyframes_.publish(msg_second);   
+	    }
 	    
 	}
 	

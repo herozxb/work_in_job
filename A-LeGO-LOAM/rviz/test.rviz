@@ -8,6 +8,7 @@ Panels:
         - /ImageProjection1
         - /LaserMapping1
         - /LaserMapping1/4.icp_output_of_map_final1
+        - /Odometry_lidar1
         - /Odometry_ORB31/Shape1
       Splitter Ratio: 0.5
     Tree Height: 455
@@ -59,6 +60,10 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        base_link:
+          Value: true
+        odom:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 5
       Name: TF
@@ -617,7 +622,7 @@ Visualization Manager:
           Value: true
         Value: true
       Enabled: true
-      Keep: 100
+      Keep: 1000
       Name: Odometry_lidar
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
@@ -651,7 +656,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: true
+      Enabled: false
       Keep: 100
       Name: Odometry_ORB3
       Position Tolerance: 0.10000000149011612
@@ -668,7 +673,7 @@ Visualization Manager:
         Value: Arrow
       Topic: /odom_aft_mapped_3
       Unreliable: false
-      Value: true
+      Value: false
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -686,7 +691,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: true
+      Enabled: false
       Keep: 100
       Name: Odometry_kalman
       Position Tolerance: 0.10000000149011612
@@ -703,7 +708,7 @@ Visualization Manager:
         Value: Arrow
       Topic: /odom_aft_mapped_kalman
       Unreliable: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -732,7 +737,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 74.89321899414062
+      Distance: 52.39775848388672
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -740,17 +745,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 27.35715103149414
-        Y: 0.027283571660518646
-        Z: -17.40275001525879
+        X: 18.299396514892578
+        Y: -2.979548931121826
+        Z: -18.924264907836914
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7997971773147583
+      Pitch: 1.059796929359436
       Target Frame: map
-      Yaw: 3.375878095626831
+      Yaw: 2.695866346359253
     Saved: ~
 Window Geometry:
   Displays:
