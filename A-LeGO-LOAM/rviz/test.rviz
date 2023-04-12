@@ -8,8 +8,7 @@ Panels:
         - /ImageProjection1
         - /LaserMapping1
         - /LaserMapping1/4.icp_output_of_map_final1
-        - /Odometry_lidar1
-        - /Odometry_ORB31/Shape1
+        - /Odometry_Ti1/Shape1
       Splitter Ratio: 0.5
     Tree Height: 455
   - Class: rviz/Selection
@@ -29,7 +28,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: 1.input_right_now_frame
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -60,10 +59,6 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        base_link:
-          Value: true
-        odom:
-          Value: true
       Marker Alpha: 1
       Marker Scale: 5
       Name: TF
@@ -408,7 +403,7 @@ Visualization Manager:
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
-          Color: 193; 125; 17
+          Color: 233; 185; 110
           Color Transformer: FlatColor
           Decay Time: 0
           Enabled: true
@@ -417,7 +412,7 @@ Visualization Manager:
           Min Color: 0; 0; 0
           Name: 1.input_right_now_frame
           Position Transformer: XYZ
-          Queue Size: 10
+          Queue Size: 12
           Selectable: true
           Size (Pixels): 3
           Size (m): 0.029999999329447746
@@ -514,14 +509,14 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 10
-            Min Value: -10
+            Max Value: 20.9268741607666
+            Min Value: -3.9470736980438232
             Value: true
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
           Color: 138; 226; 52
-          Color Transformer: FlatColor
+          Color Transformer: AxisColor
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
@@ -532,7 +527,7 @@ Visualization Manager:
           Queue Size: 10
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.20000000298023224
+          Size (m): 0.10000000149011612
           Style: Flat Squares
           Topic: /icp_keyframes
           Unreliable: false
@@ -623,7 +618,7 @@ Visualization Manager:
         Value: true
       Enabled: true
       Keep: 1000
-      Name: Odometry_lidar
+      Name: Odometry_Ti_real
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
       Shape:
@@ -656,9 +651,9 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
+      Enabled: true
       Keep: 100
-      Name: Odometry_ORB3
+      Name: Odometry_Ti
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
       Shape:
@@ -673,7 +668,7 @@ Visualization Manager:
         Value: Arrow
       Topic: /odom_aft_mapped_3
       Unreliable: false
-      Value: false
+      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -691,9 +686,9 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
+      Enabled: true
       Keep: 100
-      Name: Odometry_kalman
+      Name: Odometry_Ti_map
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
       Shape:
@@ -708,7 +703,7 @@ Visualization Manager:
         Value: Arrow
       Topic: /odom_aft_mapped_kalman
       Unreliable: false
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -737,7 +732,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 52.39775848388672
+      Distance: 140.5208282470703
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -745,17 +740,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 18.299396514892578
-        Y: -2.979548931121826
-        Z: -18.924264907836914
+        X: 13.761000633239746
+        Y: -9.98576831817627
+        Z: -19.223905563354492
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.059796929359436
+      Pitch: 1.1897969245910645
       Target Frame: map
-      Yaw: 2.695866346359253
+      Yaw: 3.060868501663208
     Saved: ~
 Window Geometry:
   Displays:
