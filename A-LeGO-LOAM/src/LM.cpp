@@ -480,6 +480,7 @@ public:
 	boxFilter_for_in.filter(*cloud_in_boxxed_for_local);
 	
 
+	/*
 	// 2.0 gicp of the cloud_in voxeled and pre cloud
 	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp;
 	gicp.setMaxCorrespondenceDistance(1.0);
@@ -490,8 +491,8 @@ public:
 	gicp.setInputTarget(cloud_pre);
 	pcl::PointCloud<pcl::PointXYZ> Final;
 	gicp.align(Final);
+	//*/
 	
-	/*
 	// 1st icp for cloud_in [now] and cloud_pre [last]
 	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 	icp.setInputSource(cloud_in_filtered);
@@ -530,7 +531,7 @@ public:
 
 
         // 2.2 get the x,y,z of the odometry of the trajectory
-	Ti = gicp.getFinalTransformation () * Ti;
+	Ti = icp.getFinalTransformation () * Ti;
 	
 	Ti_translation(0,3) = Ti(0,3);
 	Ti_translation(1,3) = Ti(1,3);
@@ -609,6 +610,15 @@ public:
 	
 	Ti_of_map = gicp_for_map.getFinalTransformation (); // * Ti_of_map;
 	
+	//Eigen::Matrix4f rotationMatrix = gicp_for_add_to_map_final.getFinalTransformation ();
+	Eigen::Matrix4f rotation_matrix = Ti_of_map;
+
+	//double roll = atan2( rotationMatrix(2,1),rotationMatrix(2,2) )/3.1415926*180;
+	//std::cout<<"roll is " << roll <<std::endl;
+	//double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
+	//std::cout<<"pitch is " << pitch <<std::endl;
+	double yaw_of_cloud_ti_to_map = atan2( rotation_matrix(1,0),rotation_matrix(0,0) )/3.1415926*180;
+	std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
 	
 	//cout<<"===========Ti_of_map=============="<<endl;
 	//cout<<Ti_of_map<<endl;
@@ -616,15 +626,17 @@ public:
 	//cout<<Ti_of_map_real<<endl;
 	//Ti_of_map_real = Ti_of_map * Ti_of_map_real;
 	//Ti_of_map is the right now translation of the input cloud to the cloud, but not add what is start from point
+
 	Ti_real = Ti * Ti_of_map;
-	
-	if( abs( Ti_of_map(0,3) ) > 0.2 )
+		
+	if( abs( Ti_of_map(0,3) ) > 0.3 || abs( Ti_of_map(1,3) ) > 0.3 || abs( yaw_of_cloud_ti_to_map ) > 1 )
 	{
 	        cout<<"===========Ti_real=============="<<endl;
+	        cout<<Ti_of_map<<endl;
 		cout<<Ti<<endl;
 		cout<<Ti_real<<endl;
 		Ti = Ti_real;
-		cout<<Ti<<endl;
+
 	}
 
 	
@@ -693,23 +705,21 @@ public:
             std::cout << "============icp==============" <<std::endl;
             std::cout << gicp_for_add_to_map_final.getFinalTransformation () <<std::endl;
             
+            /*
 	    //Eigen::Matrix4f rotationMatrix = gicp_for_add_to_map_final.getFinalTransformation ();
 	    Eigen::Matrix4f rotationMatrix = Ti_of_map;
 
-	    //std::cout<<"roll is Pi/" <<M_PI/atan2( rotationMatrix(2,1),rotationMatrix(2,2) ) <<std::endl;
-	    //std::cout<<"pitch: Pi/" <<M_PI/atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  ) <<std::endl;
-	    
 	    double roll = atan2( rotationMatrix(2,1),rotationMatrix(2,2) )/3.1415926*180;
 	    std::cout<<"roll is " << roll <<std::endl;
 	    double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
 	    std::cout<<"pitch is " << pitch <<std::endl;
 	    double yaw = atan2( rotationMatrix(1,0),rotationMatrix(0,0) )/3.1415926*180;
 	    std::cout<<"yaw is " << yaw <<std::endl;
+            //*/
+            //if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.9 && abs(yaw) < 5 && abs(roll) < 2 && abs(pitch) < 2 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
             
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.9 && abs(yaw) < 5 && abs(roll) < 2 && abs(pitch) < 2 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
             
-            
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.5 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
+            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
             {
             
 		Ti = gicp_for_add_to_map_final.getFinalTransformation () * Ti;
