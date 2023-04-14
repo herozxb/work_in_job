@@ -250,6 +250,7 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr map;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxxed;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxxed_2;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_fixed;
     
   Eigen::Matrix4f Ti;
@@ -413,6 +414,7 @@ public:
     map.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map_final_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
+    map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>);   
     map_fixed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
     
     Ti = Eigen::Matrix4f::Identity ();
@@ -470,7 +472,7 @@ public:
 	*cloud_in_boxxed_for_local = *cloud_in_filtered;
 	
         pcl::CropBox<pcl::PointXYZ> boxFilter_for_in;
-	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = - 0.3 ;
+	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = - 0.5 ;
 	float x_max_for_in = + 50, y_max_for_in = + 50, z_max_for_in = + 50;
 	
 	boxFilter_for_in.setMin(Eigen::Vector4f(x_min_for_in, y_min_for_in, z_min_for_in, 1.0));
@@ -493,12 +495,33 @@ public:
 	gicp.align(Final);
 	//*/
 	
-	// 1st icp for cloud_in [now] and cloud_pre [last]
-	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-	icp.setInputSource(cloud_in_filtered);
-	icp.setInputTarget(cloud_pre);
 	pcl::PointCloud<pcl::PointXYZ> Final;
-	icp.align(Final);
+	
+	if(counter < 5 )
+	{
+		// 1st icp for cloud_in [now] and cloud_pre [last]
+		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+		icp.setInputSource(cloud_in_filtered);
+		icp.setInputTarget(cloud_pre);
+		icp.align(Final);
+			
+		// 2.2 get the x,y,z of the odometry of the trajectory
+		Ti = icp.getFinalTransformation () * Ti;
+	}
+	else
+	{
+		// 2.0 gicp of the cloud_in voxeled and pre cloud
+		pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp;
+		gicp.setMaxCorrespondenceDistance(1.0);
+		gicp.setTransformationEpsilon(0.001);
+		gicp.setMaximumIterations(1000);
+		
+		gicp.setInputSource(cloud_in_filtered);
+		gicp.setInputTarget(cloud_pre);
+		gicp.align(Final);
+		Ti = gicp.getFinalTransformation () * Ti;
+	
+	}
 	//*/
 	//std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
 	//std::cout << icp.getFinalTransformation() << std::endl;
@@ -530,8 +553,6 @@ public:
 
 
 
-        // 2.2 get the x,y,z of the odometry of the trajectory
-	Ti = icp.getFinalTransformation () * Ti;
 	
 	//Ti_translation(0,3) = Ti(0,3);
 	//Ti_translation(1,3) = Ti(1,3);
@@ -559,7 +580,7 @@ public:
 	
 	// 3.1 boxxed the map_final
 	pcl::CropBox<pcl::PointXYZ> boxFilter;
-	float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 0.3;
+	float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 0.5;
 	float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
 	
 	boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
@@ -681,17 +702,17 @@ public:
 	if( counter % 10 == 0 )
         {
         
-            /*
+            
 	    // 3.1 boxxed the map_final
-	    //pcl::CropBox<pcl::PointXYZ> boxFilter;
-	    float x_min = Ti_real(0,3) - 100, y_min = Ti_real(1,3) - 100, z_min = Ti_real(2,3) - 100;
-	    float x_max = Ti_real(0,3) + 100, y_max = Ti_real(1,3) + 100, z_max = Ti_real(2,3) + 100;
+	    pcl::CropBox<pcl::PointXYZ> box_filter;
+	    float x_min = Ti_real(0,3) - 50, y_min = Ti_real(1,3) - 50, z_min = Ti_real(2,3) - 50;
+	    float x_max = Ti_real(0,3) + 50, y_max = Ti_real(1,3) + 50, z_max = Ti_real(2,3) + 50;
 
-	    boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
-	    boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
+	    box_filter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
+	    box_filter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
-	    boxFilter.setInputCloud(map_final);
-	    boxFilter.filter(*map_final_boxxed);
+	    box_filter.setInputCloud(map_final);
+	    box_filter.filter(*map_final_boxxed_2);
 	    //*/
         
 	    pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_map;
@@ -702,7 +723,7 @@ public:
 	    gicp_for_add_to_map_final.setMaximumIterations(1000);
 
 	    gicp_for_add_to_map_final.setInputSource(Final_cloud_translate);
-	    gicp_for_add_to_map_final.setInputTarget(map_final);
+	    gicp_for_add_to_map_final.setInputTarget(map_final_boxxed_2);
 	    gicp_for_add_to_map_final.align(Final_for_add_to_map);
 	    
             
@@ -732,7 +753,7 @@ public:
             //if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.9 && abs(yaw) < 5 && abs(roll) < 2 && abs(pitch) < 2 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
             
             
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.3 ) //  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.01 )
+            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.2 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.2 ) //  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.01 )
             {
             
 		Ti = gicp_for_add_to_map_final.getFinalTransformation () * Ti;
