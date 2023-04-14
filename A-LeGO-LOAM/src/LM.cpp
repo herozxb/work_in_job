@@ -242,6 +242,7 @@ private:
   PointCloudT::Ptr cloud_template;
   
   int counter = 0;
+  int counter_stable_map = 0;
   
   ros::Subscriber sub_pc_;
 
@@ -472,7 +473,7 @@ public:
 	*cloud_in_boxxed_for_local = *cloud_in_filtered;
 	
         pcl::CropBox<pcl::PointXYZ> boxFilter_for_in;
-	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = - 0.5 ;
+	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = + 0 ;
 	float x_max_for_in = + 50, y_max_for_in = + 50, z_max_for_in = + 50;
 	
 	boxFilter_for_in.setMin(Eigen::Vector4f(x_min_for_in, y_min_for_in, z_min_for_in, 1.0));
@@ -578,20 +579,24 @@ public:
 	sor.setLeafSize (0.1f, 0.1f, 0.1f);
 	sor.filter (*map_final);
 	
-	// 3.1 boxxed the map_final
-	pcl::CropBox<pcl::PointXYZ> boxFilter;
-	float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 0.5;
-	float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
 	
-	boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
-	boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
+	if( counter_stable_map % 20 == 0 )
+	{
+		// 3.1 boxxed the map_final
+		pcl::CropBox<pcl::PointXYZ> boxFilter;
+		float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 0;
+		float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
 
-	boxFilter.setInputCloud(map_final);
-	boxFilter.filter(*map_final_boxxed);
+		boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
+		boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
+		boxFilter.setInputCloud(map_final);
+		boxFilter.filter(*map_final_boxxed);
+	}
+	counter_stable_map++;
         //3.2 output the map_final boxxed
 	//red is the map_final
-	pcl::toROSMsg(*map_final, *msg_second);
+	pcl::toROSMsg(*map_final_boxxed, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_icp_keyframes_.publish(msg_second);  
@@ -623,6 +628,7 @@ public:
 	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp_for_map;
 	gicp_for_map.setMaxCorrespondenceDistance(10.0);
 	gicp_for_map.setTransformationEpsilon(0.01);
+	gicp_for_map.setRotationEpsilon(0.01);
 	gicp_for_map.setMaximumIterations(1000);
 	
 	gicp_for_map.setInputSource(cloud_in_boxxed_translate_to_near_mapboxxed);
@@ -648,7 +654,7 @@ public:
 	//Ti_of_map_real = Ti_of_map * Ti_of_map_real;
 	//Ti_of_map is the right now translation of the input cloud to the cloud, but not add what is start from point
 
-	Ti_real =  Ti * Ti_of_map;
+	Ti_real = Ti_of_map * Ti;
 		
 	if( abs( Ti_of_map(0,3) ) > 0.2 || abs( Ti_of_map(1,3) ) > 0.2 || abs( yaw_of_cloud_ti_to_map ) > 1 )
 	{
@@ -699,7 +705,7 @@ public:
 	//*/
 
 	
-	if( counter % 10 == 0 )
+	if( counter % 5 == 0 )
         {
         
             
@@ -718,7 +724,7 @@ public:
 	    pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_map;
 	    
 	    pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp_for_add_to_map_final;
-	    gicp_for_add_to_map_final.setMaxCorrespondenceDistance(1.0);
+	    gicp_for_add_to_map_final.setMaxCorrespondenceDistance(5.0);
 	    gicp_for_add_to_map_final.setTransformationEpsilon(0.001);
 	    gicp_for_add_to_map_final.setMaximumIterations(1000);
 
