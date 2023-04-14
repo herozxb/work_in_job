@@ -596,7 +596,7 @@ public:
 	counter_stable_map++;
         //3.2 output the map_final boxxed
 	//red is the map_final
-	pcl::toROSMsg(*map_final_boxxed, *msg_second);
+	pcl::toROSMsg(*map_final, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_icp_keyframes_.publish(msg_second);  
