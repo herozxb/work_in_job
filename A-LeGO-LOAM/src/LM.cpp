@@ -497,7 +497,7 @@ public:
 	
 	pcl::PointCloud<pcl::PointXYZ> Final;
 	
-	if(counter < 5 )
+	if(counter < 3 )
 	{
 		// 1st icp for cloud_in [now] and cloud_pre [last]
 		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
