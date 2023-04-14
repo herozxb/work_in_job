@@ -470,7 +470,7 @@ public:
 	*cloud_in_boxxed_for_local = *cloud_in_filtered;
 	
         pcl::CropBox<pcl::PointXYZ> boxFilter_for_in;
-	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = 0 ;
+	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = - 0.3 ;
 	float x_max_for_in = + 50, y_max_for_in = + 50, z_max_for_in = + 50;
 	
 	boxFilter_for_in.setMin(Eigen::Vector4f(x_min_for_in, y_min_for_in, z_min_for_in, 1.0));
@@ -533,9 +533,9 @@ public:
         // 2.2 get the x,y,z of the odometry of the trajectory
 	Ti = icp.getFinalTransformation () * Ti;
 	
-	Ti_translation(0,3) = Ti(0,3);
-	Ti_translation(1,3) = Ti(1,3);
-	Ti_translation(2,3) = Ti(2,3);
+	//Ti_translation(0,3) = Ti(0,3);
+	//Ti_translation(1,3) = Ti(1,3);
+	//Ti_translation(2,3) = Ti(2,3);
 	
 	/*
 	
@@ -559,7 +559,7 @@ public:
 	
 	// 3.1 boxxed the map_final
 	pcl::CropBox<pcl::PointXYZ> boxFilter;
-	float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) +  0;
+	float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 0.3;
 	float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
 	
 	boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
@@ -627,9 +627,9 @@ public:
 	//Ti_of_map_real = Ti_of_map * Ti_of_map_real;
 	//Ti_of_map is the right now translation of the input cloud to the cloud, but not add what is start from point
 
-	Ti_real = Ti * Ti_of_map;
+	Ti_real =  Ti * Ti_of_map;
 		
-	if( abs( Ti_of_map(0,3) ) > 0.3 || abs( Ti_of_map(1,3) ) > 0.3 || abs( yaw_of_cloud_ti_to_map ) > 1 )
+	if( abs( Ti_of_map(0,3) ) > 0.2 || abs( Ti_of_map(1,3) ) > 0.2 || abs( yaw_of_cloud_ti_to_map ) > 1 )
 	{
 	        cout<<"===========Ti_real=============="<<endl;
 	        cout<<Ti_of_map<<endl;
@@ -681,18 +681,18 @@ public:
 	if( counter % 10 == 0 )
         {
         
-        
+            /*
 	    // 3.1 boxxed the map_final
 	    //pcl::CropBox<pcl::PointXYZ> boxFilter;
-	    float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 50;
-	    float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
+	    float x_min = Ti_real(0,3) - 100, y_min = Ti_real(1,3) - 100, z_min = Ti_real(2,3) - 100;
+	    float x_max = Ti_real(0,3) + 100, y_max = Ti_real(1,3) + 100, z_max = Ti_real(2,3) + 100;
 
 	    boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
 	    boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
 	    boxFilter.setInputCloud(map_final);
 	    boxFilter.filter(*map_final_boxxed);
-	    
+	    //*/
         
 	    pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_map;
 	    
@@ -702,7 +702,7 @@ public:
 	    gicp_for_add_to_map_final.setMaximumIterations(1000);
 
 	    gicp_for_add_to_map_final.setInputSource(Final_cloud_translate);
-	    gicp_for_add_to_map_final.setInputTarget(map_final_boxxed);
+	    gicp_for_add_to_map_final.setInputTarget(map_final);
 	    gicp_for_add_to_map_final.align(Final_for_add_to_map);
 	    
             
@@ -732,7 +732,7 @@ public:
             //if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.9 && abs(yaw) < 5 && abs(roll) < 2 && abs(pitch) < 2 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
             
             
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
+            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.3 ) //  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.01 )
             {
             
 		Ti = gicp_for_add_to_map_final.getFinalTransformation () * Ti;
