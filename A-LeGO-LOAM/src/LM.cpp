@@ -681,6 +681,19 @@ public:
 	if( counter % 10 == 0 )
         {
         
+        
+	    // 3.1 boxxed the map_final
+	    //pcl::CropBox<pcl::PointXYZ> boxFilter;
+	    float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 50;
+	    float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
+
+	    boxFilter.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
+	    boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
+
+	    boxFilter.setInputCloud(map_final);
+	    boxFilter.filter(*map_final_boxxed);
+	    
+        
 	    pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_map;
 	    
 	    pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp_for_add_to_map_final;
@@ -689,7 +702,7 @@ public:
 	    gicp_for_add_to_map_final.setMaximumIterations(1000);
 
 	    gicp_for_add_to_map_final.setInputSource(Final_cloud_translate);
-	    gicp_for_add_to_map_final.setInputTarget(map_final);
+	    gicp_for_add_to_map_final.setInputTarget(map_final_boxxed);
 	    gicp_for_add_to_map_final.align(Final_for_add_to_map);
 	    
             
