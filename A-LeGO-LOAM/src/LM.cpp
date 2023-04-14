@@ -554,9 +554,9 @@ public:
 
 
 	
-	//Ti_translation(0,3) = Ti(0,3);
-	//Ti_translation(1,3) = Ti(1,3);
-	//Ti_translation(2,3) = Ti(2,3);
+	Ti_translation(0,3) = Ti(0,3);
+	Ti_translation(1,3) = Ti(1,3);
+	Ti_translation(2,3) = Ti(2,3);
 	
 	/*
 	
@@ -621,8 +621,8 @@ public:
 		
 	
 	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp_for_map;
-	gicp_for_map.setMaxCorrespondenceDistance(1.0);
-	gicp_for_map.setTransformationEpsilon(0.001);
+	gicp_for_map.setMaxCorrespondenceDistance(10.0);
+	gicp_for_map.setTransformationEpsilon(0.01);
 	gicp_for_map.setMaximumIterations(1000);
 	
 	gicp_for_map.setInputSource(cloud_in_boxxed_translate_to_near_mapboxxed);
