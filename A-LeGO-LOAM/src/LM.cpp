@@ -420,7 +420,7 @@ public:
             //if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.9 && abs(yaw) < 5 && abs(roll) < 2 && abs(pitch) < 2 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
             
             
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.2 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.2 ) //  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.01 )
+            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.3 ) //  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.01 )
             {
             
 		Ti = gicp_for_add_to_map_final.getFinalTransformation () * Ti;

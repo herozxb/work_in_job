@@ -93,10 +93,6 @@ rosrun ORB_SLAM3 Mono Vocabulary/ORBvoc.txt Examples/Monocular/TUM2.yaml
 rosbag play -r 0.5 -s 1 --clock  camera_2023-03-04-15-35-51.bag /camera123/color/image_raw:=/camera/image_raw /cari_points_1:=/lslidar_point_cloud 
 
 
-
-# git 
-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
-
 # fast_lio2 slam
 roslaunch fast_lio mapping_velodyne.launch
 rosbag play -r 1 -s 1 --clock  camera_2023-03-04-15-35-51.bag /camera123/color/image_raw:=/camera/image_raw /cari_points_1:=/velodyne_points /imu_data:=/imu/data
