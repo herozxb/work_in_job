@@ -7,10 +7,9 @@ Panels:
         - /Global Options1
         - /ImageProjection1
         - /LaserMapping1
-        - /LaserMapping1/2.last_frame1
-        - /LaserMapping1/3.map_final1
-        - /LaserMapping1/4.icp_output_of_map_final1
+        - /LaserMapping1/5.map_all1
         - /Odometry_Ti1/Shape1
+        - /Odometry_Ti_map1
       Splitter Ratio: 0.5
     Tree Height: 455
   - Class: rviz/Selection
@@ -511,14 +510,14 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 12.719566345214844
-            Min Value: -1.7389944791793823
+            Max Value: 10.627476692199707
+            Min Value: -1.3464560508728027
             Value: true
           Axis: Z
           Channel Name: intensity
           Class: rviz/PointCloud2
           Color: 138; 226; 52
-          Color Transformer: AxisColor
+          Color Transformer: Intensity
           Decay Time: 0
           Enabled: true
           Invert Rainbow: false
@@ -564,43 +563,71 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
-        - Angle Tolerance: 0.10000000149011612
-          Class: rviz/Odometry
-          Covariance:
-            Orientation:
-              Alpha: 0.5
-              Color: 255; 255; 127
-              Color Style: Unique
-              Frame: Local
-              Offset: 1
-              Scale: 1
-              Value: true
-            Position:
-              Alpha: 0.30000001192092896
-              Color: 204; 51; 204
-              Scale: 1
-              Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10.313779830932617
+            Min Value: -9.120336532592773
             Value: true
-          Enabled: false
-          Keep: 2000
-          Name: odom_aft_mapped
-          Position Tolerance: 0.10000000149011612
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Min Color: 0; 0; 0
+          Name: 5.map_all
+          Position Transformer: XYZ
           Queue Size: 10
-          Shape:
-            Alpha: 1
-            Axes Length: 1
-            Axes Radius: 0.20000000298023224
-            Color: 255; 25; 0
-            Head Length: 0.30000001192092896
-            Head Radius: 0.10000000149011612
-            Shaft Length: 1
-            Shaft Radius: 0.05000000074505806
-            Value: Axes
-          Topic: /odom_aft_mapped
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.029999999329447746
+          Style: Flat Squares
+          Topic: /map_all
           Unreliable: false
-          Value: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
       Enabled: true
       Name: LaserMapping
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: false
+      Keep: 2000
+      Name: odom_aft_mapped
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.20000000298023224
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Axes
+      Topic: /odom_aft_mapped
+      Unreliable: false
+      Value: false
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -689,7 +716,7 @@ Visualization Manager:
           Value: true
         Value: true
       Enabled: true
-      Keep: 100
+      Keep: 1000
       Name: Odometry_Ti_map
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
@@ -702,7 +729,7 @@ Visualization Manager:
         Head Radius: 0.10000000149011612
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
-        Value: Arrow
+        Value: Axes
       Topic: /odom_aft_mapped_kalman
       Unreliable: false
       Value: true
@@ -734,7 +761,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 21.966140747070312
+      Distance: 34.879661560058594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -742,17 +769,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 8.271477699279785
-        Y: 4.3073225021362305
-        Z: -4.3774800300598145
+        X: 11.172861099243164
+        Y: 0.5235124230384827
+        Z: -4.533157825469971
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6547986268997192
+      Pitch: 1.484798550605774
       Target Frame: map
-      Yaw: 4.210880279541016
+      Yaw: 1.825875163078308
     Saved: ~
 Window Geometry:
   Displays:

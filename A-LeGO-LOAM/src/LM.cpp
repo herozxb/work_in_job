@@ -48,11 +48,13 @@ private:
   ros::Publisher pub_history_keyframes_;
   ros::Publisher pub_icp_keyframes_;
   ros::Publisher pub_recent_keyframes_;
+  ros::Publisher pub_map_all_;
 
   double time_laser_odom_;
 
   int counter = 0;
   int counter_stable_map = 0;
+  int counter_all_map = 0;
   
   ros::Subscriber sub_pc_;
 
@@ -62,13 +64,24 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxxed;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxxed_2;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_fixed;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_last;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_all;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_in_all_map;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_in_all_map_boxxed;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_all_boxxed;
+    
+  
+  
     
   Eigen::Matrix4f Ti;
   Eigen::Matrix4f Ti_of_map;
   Eigen::Matrix4f Ti_of_map_real;
   Eigen::Matrix4f Ti_translation;
   Eigen::Matrix4f Ti_real;
+  
+  Eigen::Matrix4f Ti_all; 
+  Eigen::Matrix4f Ti_real_all; 
+  Eigen::Matrix4f Ti_real_last_submap_saved;
   
   
   ros::Publisher pub_odom_aft_mapped_2;
@@ -94,7 +107,7 @@ public:
     pub_recent_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("/recent_keyframes", 10);
     pub_history_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("/history_keyframes", 10);
     pub_icp_keyframes_ = nh_.advertise<sensor_msgs::PointCloud2>("/icp_keyframes", 10);
-
+    pub_map_all_ = nh_.advertise<sensor_msgs::PointCloud2>("/map_all", 10);
     
     sub_pc_ = nh_.subscribe<sensor_msgs::PointCloud2>("/lslidar_point_cloud", 10, boost::bind(&LM::main_callback, this, _1));
     
@@ -102,8 +115,12 @@ public:
     map.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map_final_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
-    map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>);   
-    map_fixed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
+    map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>);  
+    map_last.reset(new pcl::PointCloud<pcl::PointXYZ>);  
+    map_all.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_final_in_all_map.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_final_in_all_map_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_all_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);
     
     Ti = Eigen::Matrix4f::Identity ();
     Ti_of_map = Eigen::Matrix4f::Identity ();
@@ -111,6 +128,9 @@ public:
     Ti_translation = Eigen::Matrix4f::Identity ();
     Ti_real = Eigen::Matrix4f::Identity ();
     
+    Ti_all = Eigen::Matrix4f::Identity ();
+    Ti_real_all = Eigen::Matrix4f::Identity ();
+    Ti_real_last_submap_saved = Eigen::Matrix4f::Identity ();
     
     pub_odom_aft_mapped_2 = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_2", 10);
     pub_odom_aft_mapped_3 = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_3", 10);
@@ -131,6 +151,7 @@ public:
 
     if( counter == 0 )
     {
+        //pcl::transformPointCloud (*cloud_in, *cloud_in, Ti_real_last_submap_saved);
         // Initialize the map
     	*map_final = *cloud_in;
     	
@@ -180,7 +201,7 @@ public:
 	
 	pcl::PointCloud<pcl::PointXYZ> Final;
 	
-	if(counter < 3 )
+	if( counter < 2 )
 	{
 		// 1st icp for cloud_in [now] and cloud_pre [last]
 		pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -190,6 +211,9 @@ public:
 			
 		// 2.2 get the x,y,z of the odometry of the trajectory
 		Ti = icp.getFinalTransformation () * Ti;
+		
+		Ti_all = icp.getFinalTransformation () * Ti_all;
+		
 	}
 	else
 	{
@@ -203,6 +227,10 @@ public:
 		gicp.setInputTarget(cloud_pre);
 		gicp.align(Final);
 		Ti = gicp.getFinalTransformation () * Ti;
+		Ti_all = gicp.getFinalTransformation () * Ti_all;
+		
+		//cout<<"===============Ti_all================"<<endl;
+		//cout<<Ti_all<<endl;
 	
 	}
 	//*/
@@ -311,17 +339,23 @@ public:
 	//double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
 	//std::cout<<"pitch is " << pitch <<std::endl;
 	double yaw_of_cloud_ti_to_map = atan2( rotation_matrix(1,0),rotation_matrix(0,0) )/3.1415926*180;
-	std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
+	//std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
 	
 	Ti_real = Ti_of_map * Ti;
+	Ti_real_all = Ti_real_last_submap_saved * Ti_real ;
+	
+	//cout<<"===============Ti_real_all================"<<endl;
+	//cout<<Ti_real_all<<endl;
+	
 		
 	if( abs( Ti_of_map(0,3) ) > 0.2 || abs( Ti_of_map(1,3) ) > 0.2 || abs( yaw_of_cloud_ti_to_map ) > 1 )
 	{
-	        cout<<"===========Ti_real=============="<<endl;
-	        cout<<Ti_of_map<<endl;
-		cout<<Ti<<endl;
-		cout<<Ti_real<<endl;
+	        //cout<<"===========Ti_real=============="<<endl;
+	        //cout<<Ti_of_map<<endl;
+		//cout<<Ti<<endl;
+		//cout<<Ti_real<<endl;
 		Ti = Ti_real;
+		
 
 	}
 
@@ -403,8 +437,8 @@ public:
 	    icp_for_add_to_map_final.align(Final_for_add_to_map);
             //*/
             
-            std::cout << "============icp==============" <<std::endl;
-            std::cout << gicp_for_add_to_map_final.getFinalTransformation () <<std::endl;
+            //std::cout << "============icp==============" <<std::endl;
+            //std::cout << gicp_for_add_to_map_final.getFinalTransformation () <<std::endl;
             
             /*
 	    //Eigen::Matrix4f rotationMatrix = gicp_for_add_to_map_final.getFinalTransformation ();
@@ -431,36 +465,114 @@ public:
 		msg_second->header.stamp.fromSec(0);
 		msg_second->header.frame_id = "map";
 		pub_history_keyframes_.publish(msg_second);   
-	    }
-	    
+	    }   
 	}
-	
-	/*
-	if( sqrt( Ti_real(0,3)*Ti_real(0,3) + Ti_real(1,3)*Ti_real(1,3) ) > 50 )
-	{
-		Ti = Eigen::Matrix4f::Identity ();
-		Ti_of_map = Eigen::Matrix4f::Identity ();
-		Ti_real = Eigen::Matrix4f::Identity ();
-		
-		counter = 0;
-		counter_stable_map = 0;
-		
-		map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
-		map_final_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
-		map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>); 
-	
-	
-	}
-	//*/
-	
-	
     }
-    
+     
     counter++;
     
     *cloud_pre = *cloud_in_filtered;
   
   //*/   
+  
+  
+    if( sqrt( Ti_real(0,3)*Ti_real(0,3) + Ti_real(1,3)*Ti_real(1,3) ) > 10 )
+    {
+    
+        
+        pcl::transformPointCloud (*map_final, *map_final_in_all_map, Ti_real_last_submap_saved);
+        
+        
+        
+        
+        
+        
+	//Ti_real_last_submap_saved = Ti_real_all;
+	//Ti_real_last_submap_saved = Ti_real * Ti_real_last_submap_saved;
+	//*map_all += *map_final_in_all_map;
+         
+
+
+	if( counter_all_map == 0)
+	{
+		Ti_real_last_submap_saved = Ti_real_all;
+		//*map_all += *map_final_in_all_map;
+		
+		//Ti_real_last_submap_saved = Ti_real * Ti_real_last_submap_saved;
+		*map_all += *map_final_in_all_map;
+		
+	}
+	else
+	{
+		/*
+		// 3.1 boxxed the map_final
+		pcl::CropBox<pcl::PointXYZ> box_filter_all;
+		float x_min = Ti_real_last_submap_saved(0,3) - 50, y_min = Ti_real_last_submap_saved(1,3) - 50, z_min = Ti_real_last_submap_saved(2,3) - 50;
+		float x_max = Ti_real_last_submap_saved(0,3) + 50, y_max = Ti_real_last_submap_saved(1,3) + 50, z_max = Ti_real_last_submap_saved(2,3) + 50;
+
+		box_filter_all.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
+		box_filter_all.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
+
+		box_filter_all.setInputCloud(map_final_in_all_map);
+		box_filter_all.filter(*map_final_in_all_map_boxxed);
+		
+		box_filter_all.setInputCloud(map_all);
+		box_filter_all.filter(*map_all_boxxed);
+		//*/
+		
+		/*
+		pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_all;
+
+		pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp_for_add_to_map_all;
+		gicp_for_add_to_map_all.setMaxCorrespondenceDistance(10.0);
+		gicp_for_add_to_map_all.setTransformationEpsilon(0.001);
+		gicp_for_add_to_map_all.setMaximumIterations(1000);
+
+		gicp_for_add_to_map_all.setInputSource(map_final_in_all_map);
+		gicp_for_add_to_map_all.setInputTarget(map_final_in_all_map_boxxed);
+		gicp_for_add_to_map_all.align(Final_for_add_to_all);
+		
+		
+		Ti_real_last_submap_saved = gicp_for_add_to_map_all. getFinalTransformation ()  * Ti_real *  Ti_real_last_submap_saved;
+		*map_all += Final_for_add_to_all;
+		//*/	
+		
+		Ti_real_last_submap_saved = Ti_real_all;
+		//Ti_real_last_submap_saved = Ti_real * Ti_real_last_submap_saved;
+		*map_all += *map_final_in_all_map;
+	}
+	
+	counter_all_map++;
+	//*/
+		
+	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
+	pcl::toROSMsg(*map_all, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_map_all_.publish(msg_second); 
+	
+	        
+	Ti = Eigen::Matrix4f::Identity ();
+	Ti_of_map = Eigen::Matrix4f::Identity ();
+	Ti_real = Eigen::Matrix4f::Identity ();
+
+	counter = 0;
+	counter_stable_map = 0;
+
+	map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
+	map_final_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
+	map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>); 
+
+
+
+	*map_final_in_all_map_boxxed = *map_final_in_all_map;
+
+
+    }
+    
+    //*/
+  
+  
   
   }
 
@@ -519,9 +631,9 @@ public:
     msg_3->header.stamp.fromSec(time_laser_odom_);
     msg_3->header.frame_id = "map";
     msg_3->child_frame_id = "/laser";
-    msg_3->pose.pose.position.x = Ti(0,3);
-    msg_3->pose.pose.position.y = Ti(1,3);
-    msg_3->pose.pose.position.z = Ti(2,3);
+    msg_3->pose.pose.position.x = Ti_real_last_submap_saved(0,3);
+    msg_3->pose.pose.position.y = Ti_real_last_submap_saved(1,3);
+    msg_3->pose.pose.position.z = Ti_real_last_submap_saved(2,3);
     msg_3->pose.pose.orientation.w = 1;
     msg_3->pose.pose.orientation.x = 0;
     msg_3->pose.pose.orientation.y = 0;
@@ -566,9 +678,9 @@ public:
     msg_kalman->header.frame_id = "map";
     msg_kalman->child_frame_id = "/laser";
     
-    msg_kalman->pose.pose.position.x = Ti_of_map_real(0,3);
-    msg_kalman->pose.pose.position.y = Ti_of_map_real(1,3);
-    msg_kalman->pose.pose.position.z = Ti_of_map_real(2,3);
+    msg_kalman->pose.pose.position.x = Ti_real_all(0,3);
+    msg_kalman->pose.pose.position.y = Ti_real_all(1,3);
+    msg_kalman->pose.pose.position.z = Ti_real_all(2,3);
     msg_kalman->pose.pose.orientation.w = 1;
     msg_kalman->pose.pose.orientation.x = 0;
     msg_kalman->pose.pose.orientation.y = 0;
@@ -583,7 +695,7 @@ public:
   //main loop thread
   void mainLoop()
   {
-    ros::Duration dura(0.001);
+    ros::Duration dura(0.01);
     while (ros::ok())
     {
       
