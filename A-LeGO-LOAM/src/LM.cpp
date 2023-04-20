@@ -6,32 +6,13 @@
 #include <pcl/registration/ndt.h>
 #include <pcl/registration/gicp.h>
 
-#include <boost/interprocess/shared_memory_object.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-
-using namespace boost::interprocess;
-using namespace std;
-
 #include <iostream>
 #include <stdint.h>
 #include <vector>
 #include <random>
 #include <cmath>
 
-#include "../include/EKF/types.h"
-#include "../include/EKF/kalman_filter.h"
-
-static constexpr size_t DIM_X{ 1 };
-static constexpr size_t DIM_Z{ 2 };
-
-static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter;
-static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter_x;
-static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter_y;
-static kf::KalmanFilter<DIM_X, DIM_Z> kalmanfilter_z;
-
-double x = 0;
-double y = 0;
-double z = 0;
+using namespace std;
 
 class LM
 {
@@ -62,13 +43,13 @@ private:
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr map;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxxed;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxxed_2;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxed;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_boxed_2;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_last;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_all;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_in_all_map;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_in_all_map_boxxed;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr map_all_boxxed;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_in_all_map_boxed;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_all_boxed;
     
   
   
@@ -78,6 +59,7 @@ private:
   Eigen::Matrix4f Ti_of_map_real;
   Eigen::Matrix4f Ti_translation;
   Eigen::Matrix4f Ti_real;
+  Eigen::Matrix4f Ti_of_map_for_all;
   
   Eigen::Matrix4f Ti_all; 
   Eigen::Matrix4f Ti_real_all; 
@@ -114,19 +96,20 @@ public:
     cloud_pre.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    map_final_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
-    map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>);  
+    map_final_boxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
+    map_final_boxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>);  
     map_last.reset(new pcl::PointCloud<pcl::PointXYZ>);  
     map_all.reset(new pcl::PointCloud<pcl::PointXYZ>);
     map_final_in_all_map.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    map_final_in_all_map_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    map_all_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_final_in_all_map_boxed.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    map_all_boxed.reset(new pcl::PointCloud<pcl::PointXYZ>);
     
     Ti = Eigen::Matrix4f::Identity ();
     Ti_of_map = Eigen::Matrix4f::Identity ();
     Ti_of_map_real = Eigen::Matrix4f::Identity ();
     Ti_translation = Eigen::Matrix4f::Identity ();
     Ti_real = Eigen::Matrix4f::Identity ();
+    Ti_of_map_for_all = Eigen::Matrix4f::Identity ();
     
     Ti_all = Eigen::Matrix4f::Identity ();
     Ti_real_all = Eigen::Matrix4f::Identity ();
@@ -145,13 +128,12 @@ public:
   
   
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZ>(5,1));
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_boxxed_for_local (new pcl::PointCloud<pcl::PointXYZ>(5,1));
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_boxed_for_local (new pcl::PointCloud<pcl::PointXYZ>(5,1));
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_filtered (new pcl::PointCloud<pcl::PointXYZ>(5,1));
     pcl::fromROSMsg(*msg, *cloud_in);
 
     if( counter == 0 )
     {
-        //pcl::transformPointCloud (*cloud_in, *cloud_in, Ti_real_last_submap_saved);
         // Initialize the map
     	*map_final = *cloud_in;
     	
@@ -172,8 +154,8 @@ public:
 	sor_input.setLeafSize (0.1f, 0.1f, 0.1f);
 	sor_input.filter (*cloud_in_filtered);
 	
-	// 1.2 boxxed the cloud
-	*cloud_in_boxxed_for_local = *cloud_in_filtered;
+	// 1.2 boxed the cloud
+	*cloud_in_boxed_for_local = *cloud_in_filtered;
 	
         pcl::CropBox<pcl::PointXYZ> boxFilter_for_in;
 	float x_min_for_in = - 50, y_min_for_in = - 50, z_min_for_in = + 0 ;
@@ -182,23 +164,10 @@ public:
 	boxFilter_for_in.setMin(Eigen::Vector4f(x_min_for_in, y_min_for_in, z_min_for_in, 1.0));
 	boxFilter_for_in.setMax(Eigen::Vector4f(x_max_for_in, y_max_for_in, z_max_for_in, 1.0));
 
-	boxFilter_for_in.setInputCloud(cloud_in_boxxed_for_local);
-	boxFilter_for_in.filter(*cloud_in_boxxed_for_local);
+	boxFilter_for_in.setInputCloud(cloud_in_boxed_for_local);
+	boxFilter_for_in.filter(*cloud_in_boxed_for_local);
 	
 
-	/*
-	// 2.0 gicp of the cloud_in voxeled and pre cloud
-	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp;
-	gicp.setMaxCorrespondenceDistance(1.0);
-	gicp.setTransformationEpsilon(0.001);
-	gicp.setMaximumIterations(1000);
-	
-	gicp.setInputSource(cloud_in_filtered);
-	gicp.setInputTarget(cloud_pre);
-	pcl::PointCloud<pcl::PointXYZ> Final;
-	gicp.align(Final);
-	//*/
-	
 	pcl::PointCloud<pcl::PointXYZ> Final;
 	
 	if( counter < 2 )
@@ -211,8 +180,7 @@ public:
 			
 		// 2.2 get the x,y,z of the odometry of the trajectory
 		Ti = icp.getFinalTransformation () * Ti;
-		
-		Ti_all = icp.getFinalTransformation () * Ti_all;
+
 		
 	}
 	else
@@ -227,40 +195,22 @@ public:
 		gicp.setInputTarget(cloud_pre);
 		gicp.align(Final);
 		Ti = gicp.getFinalTransformation () * Ti;
-		Ti_all = gicp.getFinalTransformation () * Ti_all;
-		
-		//cout<<"===============Ti_all================"<<endl;
-		//cout<<Ti_all<<endl;
 	
 	}
 	//*/
 	
-	// 2.1 output the cloud_in_boxxed_for_local and cloud_pre
+	
+	// 2.1 output the cloud_in_boxed_for_local and cloud_pre
 	//brown is the input cloud of right now frame
 	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
 	//cout<<"==================cloud_in====================="<<endl;
-	pcl::toROSMsg(*cloud_in_boxxed_for_local, *msg_second);
+	pcl::toROSMsg(*cloud_in_boxed_for_local, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_cloud_surround_.publish(msg_second);
+	//*/
 
-/*
-	//blue is cloud_pre, the last frame
-	pcl::toROSMsg(*cloud_pre, *msg_second);
-	msg_second->header.stamp.fromSec(0);
-	msg_second->header.frame_id = "map";
-	pub_recent_keyframes_.publish(msg_second); 
-//*/
-
-	//cout<<"==================Final====================="<<endl;
-	//pcl::toROSMsg(Final, *msg_second);
-	//msg_second->header.stamp.fromSec(0);
-	//msg_second->header.frame_id = "map";
-	//pub_history_keyframes_.publish(msg_second);    
-
-
-
-
+  
 	
 	Ti_translation(0,3) = Ti(0,3);
 	Ti_translation(1,3) = Ti(1,3);
@@ -277,7 +227,7 @@ public:
 	
 	if( counter_stable_map % 20 == 0 )
 	{
-		// 3.1 boxxed the map_final
+		// 3.1 boxed the map_final
 		pcl::CropBox<pcl::PointXYZ> boxFilter;
 		float x_min = Ti(0,3) - 50, y_min = Ti(1,3) - 50, z_min = Ti(2,3) - 0;
 		float x_max = Ti(0,3) + 50, y_max = Ti(1,3) + 50, z_max = Ti(2,3) + 50;
@@ -286,35 +236,23 @@ public:
 		boxFilter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
 		boxFilter.setInputCloud(map_final);
-		boxFilter.filter(*map_final_boxxed);
+		boxFilter.filter(*map_final_boxed);
 	}
 	counter_stable_map++;
-        //3.2 output the map_final boxxed
+        //3.2 output the map_final boxed
 	//red is the map_final
 	pcl::toROSMsg(*map_final, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_icp_keyframes_.publish(msg_second);  
 	
-	/*
-	//cout<<"==================FinalTransformation_of_map====================="<<endl;
-	// 2nd icp for cloud_in_cropbox_for_local and map_final_boxxed
-        pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_for_map;
-	icp_for_map.setInputSource(cloud_in_cropbox_for_local);
-	icp_for_map.setInputTarget(map_final_boxxed);
-	//pcl::PointCloud<pcl::PointXYZ> Final;
-	icp_for_map.align(Final);
-	//std::cout << "has converged:" << icp_for_map.hasConverged() << " score: " << icp_for_map.getFitnessScore() << std::endl;
-	//std::cout << icp_for_map.getFinalTransformation() << std::endl;
-	//*/
+	//3.3 get the gicp of the cloud in boxed and the map boxed
 	
-	//3.3 get the gicp of the cloud in boxxed and the map boxxed
-	
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_boxxed_translate_to_near_mapboxxed (new pcl::PointCloud<pcl::PointXYZ>(5,1));
-	pcl::transformPointCloud (*cloud_in_boxxed_for_local, *cloud_in_boxxed_translate_to_near_mapboxxed, Ti);   
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in_boxed_translate_to_near_mapboxed (new pcl::PointCloud<pcl::PointXYZ>(5,1));
+	pcl::transformPointCloud (*cloud_in_boxed_for_local, *cloud_in_boxed_translate_to_near_mapboxed, Ti);   
 
 	//blue is cloud_pre, the last frame
-	pcl::toROSMsg(*cloud_in_boxxed_translate_to_near_mapboxxed, *msg_second);
+	pcl::toROSMsg(*cloud_in_boxed_translate_to_near_mapboxed, *msg_second);
 	msg_second->header.stamp.fromSec(0);
 	msg_second->header.frame_id = "map";
 	pub_recent_keyframes_.publish(msg_second); 
@@ -326,8 +264,8 @@ public:
 	gicp_for_map.setRotationEpsilon(0.01);
 	gicp_for_map.setMaximumIterations(1000);
 	
-	gicp_for_map.setInputSource(cloud_in_boxxed_translate_to_near_mapboxxed);
-	gicp_for_map.setInputTarget(map_final_boxxed);
+	gicp_for_map.setInputSource(cloud_in_boxed_translate_to_near_mapboxed);
+	gicp_for_map.setInputTarget(map_final_boxed);
 	gicp_for_map.align(Final);
 	
 	Ti_of_map = gicp_for_map.getFinalTransformation (); // * Ti_of_map;
@@ -339,60 +277,25 @@ public:
 	//double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
 	//std::cout<<"pitch is " << pitch <<std::endl;
 	double yaw_of_cloud_ti_to_map = atan2( rotation_matrix(1,0),rotation_matrix(0,0) )/3.1415926*180;
-	//std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
+	std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
 	
 	Ti_real = Ti_of_map * Ti;
 	Ti_real_all = Ti_real_last_submap_saved * Ti_real ;
 	
-	//cout<<"===============Ti_real_all================"<<endl;
-	//cout<<Ti_real_all<<endl;
-	
+
 		
-	if( abs( Ti_of_map(0,3) ) > 0.2 || abs( Ti_of_map(1,3) ) > 0.2 || abs( yaw_of_cloud_ti_to_map ) > 1 )
+	if( abs( Ti_of_map(0,3) ) > 0.2 || abs( Ti_of_map(1,3) ) > 0.2 ||  abs( yaw_of_cloud_ti_to_map ) > 1)
 	{
-	        //cout<<"===========Ti_real=============="<<endl;
-	        //cout<<Ti_of_map<<endl;
-		//cout<<Ti<<endl;
-		//cout<<Ti_real<<endl;
+	        cout<<"===========Ti_real=============="<<endl;
+	        cout<<Ti_of_map<<endl;
+		cout<<Ti<<endl;
+		cout<<Ti_real<<endl;
 		Ti = Ti_real;
 		
 
 	}
 
 	
-	
-	/*
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_map_translate (new pcl::PointCloud<pcl::PointXYZ>(5,1));
-	pcl::transformPointCloud (*cloud_in_filtered, *cloud_map_translate, Ti_real);    
-	
-
-	
-	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> gicp_final_and_map;
-	gicp_final_and_map.setMaxCorrespondenceDistance(1.0);
-	gicp_final_and_map.setTransformationEpsilon(0.001);
-	gicp_final_and_map.setMaximumIterations(1000);
-	
-	gicp_final_and_map.setInputSource(cloud_map_translate);
-	gicp_final_and_map.setInputTarget(map_final);
-	gicp_final_and_map.align(Final);
-	
-	/*
-	//3rd icp for cloud_map_translate and map_final
-	pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_final_and_map;
-	icp_final_and_map.setInputSource(cloud_map_translate);
-	icp_final_and_map.setInputTarget(map_final);
-	//pcl::PointCloud<pcl::PointXYZ> Final;
-	icp_final_and_map.align(Final);
-	//std::cout << "has converged:" << icp_final_and_map.hasConverged() << " score: " << icp_final_and_map.getFitnessScore() << std::endl;
-	//std::cout << icp_final_and_map.getFinalTransformation() << std::endl;
-	//*/
-	
-	/*
-	pcl::PointCloud<pcl::PointXYZ>::Ptr Final_translate (new pcl::PointCloud<pcl::PointXYZ>(5,1));
-	pcl::transformPointCloud (*cloud_map_translate, *Final_translate, gicp_final_and_map.getFinalTransformation ()); 
-	//*/
-	 
-
 	pcl::PointCloud<pcl::PointXYZ>::Ptr Final_cloud_translate (new pcl::PointCloud<pcl::PointXYZ>(5,1));
 	pcl::transformPointCloud (*cloud_in_filtered, *Final_cloud_translate, Ti_real); 
 	//*/
@@ -404,7 +307,7 @@ public:
         {
         
             
-	    // 3.1 boxxed the map_final
+	    // 3.1 boxed the map_final
 	    pcl::CropBox<pcl::PointXYZ> box_filter;
 	    float x_min = Ti_real(0,3) - 50, y_min = Ti_real(1,3) - 50, z_min = Ti_real(2,3) - 50;
 	    float x_max = Ti_real(0,3) + 50, y_max = Ti_real(1,3) + 50, z_max = Ti_real(2,3) + 50;
@@ -413,7 +316,7 @@ public:
 	    box_filter.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
 	    box_filter.setInputCloud(map_final);
-	    box_filter.filter(*map_final_boxxed_2);
+	    box_filter.filter(*map_final_boxed_2);
 	    //*/
         
 	    pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_map;
@@ -424,37 +327,12 @@ public:
 	    gicp_for_add_to_map_final.setMaximumIterations(1000);
 
 	    gicp_for_add_to_map_final.setInputSource(Final_cloud_translate);
-	    gicp_for_add_to_map_final.setInputTarget(map_final_boxxed_2);
+	    gicp_for_add_to_map_final.setInputTarget(map_final_boxed_2);
 	    gicp_for_add_to_map_final.align(Final_for_add_to_map);
 	    
             
             
-            /*
-	    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_for_add_to_map_final;
-	    icp_for_add_to_map_final.setInputSource(Final_translate);
-	    icp_for_add_to_map_final.setInputTarget(map_final);
-	   //pcl::PointCloud<pcl::PointXYZ> Final;
-	    icp_for_add_to_map_final.align(Final_for_add_to_map);
-            //*/
-            
-            //std::cout << "============icp==============" <<std::endl;
-            //std::cout << gicp_for_add_to_map_final.getFinalTransformation () <<std::endl;
-            
-            /*
-	    //Eigen::Matrix4f rotationMatrix = gicp_for_add_to_map_final.getFinalTransformation ();
-	    Eigen::Matrix4f rotationMatrix = Ti_of_map;
-
-	    double roll = atan2( rotationMatrix(2,1),rotationMatrix(2,2) )/3.1415926*180;
-	    std::cout<<"roll is " << roll <<std::endl;
-	    double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
-	    std::cout<<"pitch is " << pitch <<std::endl;
-	    double yaw = atan2( rotationMatrix(1,0),rotationMatrix(0,0) )/3.1415926*180;
-	    std::cout<<"yaw is " << yaw <<std::endl;
-            //*/
-            //if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.9 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.9 && abs(yaw) < 5 && abs(roll) < 2 && abs(pitch) < 2 )//&& abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.5 )
-            
-            
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.3 ) //  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(2,3) ) < 0.01 )
+            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.3 ) 
             {
             
 		Ti = gicp_for_add_to_map_final.getFinalTransformation () * Ti;
@@ -476,49 +354,51 @@ public:
   //*/   
   
   
-    if( sqrt( Ti_real(0,3)*Ti_real(0,3) + Ti_real(1,3)*Ti_real(1,3) ) > 10 )
+    if( sqrt( Ti_real(0,3)*Ti_real(0,3) + Ti_real(1,3)*Ti_real(1,3) ) > 20 )
     {
     
         
         pcl::transformPointCloud (*map_final, *map_final_in_all_map, Ti_real_last_submap_saved);
         
-        
-        
-        
-        
-        
-	//Ti_real_last_submap_saved = Ti_real_all;
-	//Ti_real_last_submap_saved = Ti_real * Ti_real_last_submap_saved;
-	//*map_all += *map_final_in_all_map;
-         
-
-
+	Ti_real_last_submap_saved = Ti_real_all;
+	*map_all += *map_final_in_all_map;
+	
+	
+	// Create the filtering object
+	pcl::VoxelGrid<pcl::PointXYZ> sor_input;
+	sor_input.setInputCloud (map_all);
+	sor_input.setLeafSize (0.1f, 0.1f, 0.1f);
+	sor_input.filter (*map_all);
+	
+	
+	/*
+	
 	if( counter_all_map == 0)
 	{
 		Ti_real_last_submap_saved = Ti_real_all;
-		//*map_all += *map_final_in_all_map;
-		
-		//Ti_real_last_submap_saved = Ti_real * Ti_real_last_submap_saved;
 		*map_all += *map_final_in_all_map;
 		
 	}
 	else
 	{
-		/*
-		// 3.1 boxxed the map_final
-		pcl::CropBox<pcl::PointXYZ> box_filter_all;
-		float x_min = Ti_real_last_submap_saved(0,3) - 50, y_min = Ti_real_last_submap_saved(1,3) - 50, z_min = Ti_real_last_submap_saved(2,3) - 50;
+		
+		
+		// 3.1 boxed the map submap
+		pcl::CropBox<pcl::PointXYZ> box_filter_submap;
+		float x_min = Ti_real_last_submap_saved(0,3) - 50, y_min = Ti_real_last_submap_saved(1,3) - 50, z_min = Ti_real_last_submap_saved(2,3) - 0;
 		float x_max = Ti_real_last_submap_saved(0,3) + 50, y_max = Ti_real_last_submap_saved(1,3) + 50, z_max = Ti_real_last_submap_saved(2,3) + 50;
 
-		box_filter_all.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
-		box_filter_all.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
+		box_filter_submap.setMin(Eigen::Vector4f(x_min, y_min, z_min, 1.0));
+		box_filter_submap.setMax(Eigen::Vector4f(x_max, y_max, z_max, 1.0));
 
-		box_filter_all.setInputCloud(map_final_in_all_map);
-		box_filter_all.filter(*map_final_in_all_map_boxxed);
-		
-		box_filter_all.setInputCloud(map_all);
-		box_filter_all.filter(*map_all_boxxed);
+		box_filter_submap.setInputCloud(map_final_in_all_map);
+		box_filter_submap.filter(*map_final_in_all_map_boxed);
+
+				
+		box_filter_submap.setInputCloud(map_all);
+		box_filter_submap.filter(*map_all_boxed);
 		//*/
+		
 		
 		/*
 		pcl::PointCloud<pcl::PointXYZ> Final_for_add_to_all;
@@ -528,22 +408,83 @@ public:
 		gicp_for_add_to_map_all.setTransformationEpsilon(0.001);
 		gicp_for_add_to_map_all.setMaximumIterations(1000);
 
-		gicp_for_add_to_map_all.setInputSource(map_final_in_all_map);
-		gicp_for_add_to_map_all.setInputTarget(map_final_in_all_map_boxxed);
+		gicp_for_add_to_map_all.setInputSource(map_final_in_all_map_boxed);
+		gicp_for_add_to_map_all.setInputTarget(map_all_boxed);
 		gicp_for_add_to_map_all.align(Final_for_add_to_all);
 		
 		
-		Ti_real_last_submap_saved = gicp_for_add_to_map_all. getFinalTransformation ()  * Ti_real *  Ti_real_last_submap_saved;
-		*map_all += Final_for_add_to_all;
-		//*/	
 		
-		Ti_real_last_submap_saved = Ti_real_all;
-		//Ti_real_last_submap_saved = Ti_real * Ti_real_last_submap_saved;
-		*map_all += *map_final_in_all_map;
+		
+		Ti_of_map_for_all = gicp_for_add_to_map_all.getFinalTransformation (); // * Ti_of_map;
+
+		Eigen::Matrix4f rotation_matrix = Ti_of_map_for_all;
+
+		//double roll = atan2( rotationMatrix(2,1),rotationMatrix(2,2) )/3.1415926*180;
+		//std::cout<<"roll is " << roll <<std::endl;
+		//double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
+		//std::cout<<"pitch is " << pitch <<std::endl;
+		double yaw_of_cloud_ti_of_map_all_once = atan2( rotation_matrix(1,0),rotation_matrix(0,0) )/3.1415926*180;
+		//std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
+		
+		double x = gicp_for_add_to_map_all.getFinalTransformation ()(0,3);
+		double y = gicp_for_add_to_map_all.getFinalTransformation ()(1,3);
+		
+		cout<<"========================gicp_for_add_to_map_all========================"<<endl;
+		cout<<"x="<<x<<endl;
+		cout<<"y="<<y<<endl;
+		cout<<"theta="<<yaw_of_cloud_ti_of_map_all_once<<endl;
+		
+		/*
+		if( abs( yaw_of_cloud_ti_of_map_all_once ) < 2.0)
+		{
+		
+			pcl::transformPointCloud (*map_final_in_all_map, *map_final_in_all_map, gicp_for_add_to_map_all.getFinalTransformation ());
+		        cout<<"========================gicp========================"<<endl;
+			Ti_real_last_submap_saved = gicp_for_add_to_map_all.getFinalTransformation ()  *  Ti_real_all;
+			*map_all += *map_final_in_all_map;
+		}
+		else
+		{
+			cout<<"========================submap========================"<<endl;
+			*map_all += *map_final_in_all_map;
+		}
+		*/
+		//
+		
+		/*
+		if( ( abs( x ) > 0.5 && abs( x ) < 3.9 ) || ( abs( y ) > 0.5 && abs( y ) < 3.9 ) && (abs( yaw_of_cloud_ti_of_map_all_once ) > 1  && abs( yaw_of_cloud_ti_of_map_all_once ) < 3.9)  )
+		{
+			cout<<"========================gicp========================"<<endl;
+			pcl::transformPointCloud (*map_final_in_all_map, *map_final_in_all_map, gicp_for_add_to_map_all.getFinalTransformation ());
+			
+			Ti_real_last_submap_saved = gicp_for_add_to_map_all.getFinalTransformation ()  *  Ti_real_all;
+			*map_all += *map_final_in_all_map;
+		}
+		else
+		{	
+			cout<<"========================submap========================"<<endl;
+			Ti_real_last_submap_saved = Ti_real_all;
+			*map_all += *map_final_in_all_map;
+		}
+	
+		
+
 	}
+	//*/
 	
 	counter_all_map++;
 	//*/
+
+
+	
+	/*
+	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
+	//cout<<"==================cloud_in====================="<<endl;
+	pcl::toROSMsg(*map_final_in_all_map_boxed, *msg_second);
+	msg_second->header.stamp.fromSec(0);
+	msg_second->header.frame_id = "map";
+	pub_cloud_surround_.publish(msg_second);
+	//*/	
 		
 	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
 	pcl::toROSMsg(*map_all, *msg_second);
@@ -560,13 +501,11 @@ public:
 	counter_stable_map = 0;
 
 	map_final.reset(new pcl::PointCloud<pcl::PointXYZ>);
-	map_final_boxxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
-	map_final_boxxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>); 
+	map_final_boxed.reset(new pcl::PointCloud<pcl::PointXYZ>);    
+	map_final_boxed_2.reset(new pcl::PointCloud<pcl::PointXYZ>); 
 
 
-
-	*map_final_in_all_map_boxxed = *map_final_in_all_map;
-
+	*map_final_in_all_map_boxed = *map_final_in_all_map;
 
     }
     
@@ -577,38 +516,10 @@ public:
   }
 
   
-  //get the odometry information
-  void laserOdomHandler(const nav_msgs::OdometryConstPtr &msg)
-  {
-
-  }
-
-  
 
   void publish_transform()
   {
   
-
-    shared_memory_object shdmem(open_or_create, "Boost", read_write);
-    shdmem.truncate(1024);
-    mapped_region region(shdmem, read_write);
-    double* i1 = static_cast<double*>(region.get_address());
-
-    tf::Quaternion q( -0.00666253 , -0.0385051, 0.0329403, 0.998693);
-    tf::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-
-
-    PointT this_pose_3d;
-
-    this_pose_3d.x = (*i1)*((-45));
-    this_pose_3d.y = (*(i1+1))*80;  
-    this_pose_3d.z = (*(i1+2))* (-0.45);
-    this_pose_3d.intensity = 1;
-
-    
-    
     //cout<<"=============================Odometry================================"<<endl;
     //cout<< Ti_real <<endl;
     
@@ -625,8 +536,6 @@ public:
     msg_2->pose.pose.orientation.z = 0;
     pub_odom_aft_mapped_2.publish(msg_2);
     
-    //cout<<"=============================Odometry_2================================"<<endl;
-
     nav_msgs::OdometryPtr msg_3(new nav_msgs::Odometry);
     msg_3->header.stamp.fromSec(time_laser_odom_);
     msg_3->header.frame_id = "map";
@@ -640,39 +549,7 @@ public:
     msg_3->pose.pose.orientation.z = 0;
     pub_odom_aft_mapped_3.publish(msg_3);
     
-    
-    kf::Matrix<1, 1>  matrix_F{ kf::Matrix<1, 1>::Identity() };  // 1x1
-    matrix_F << 1.0F;
-    
-    kf::Matrix<1, 1>  matrix_Q{ kf::Matrix<1, 1>::Identity() };  // 1x1
-    matrix_Q << 0.05F;
-    
-    kf::Matrix<2, 2>  matrix_R { kf::Matrix<2, 2>::Identity() }; // 2x2
-    matrix_R << 2, 0, 0, 1;
-    
-    kf::Matrix<2, 1>  matrix_H { kf::Matrix<2, 1>::Random(2,1) };// 2x1
-    matrix_H << 1.0F, 1.0F;
-    
-    
-    //std::cout<<"======================kalmanfilter============================="<<std::endl;
-    kalmanfilter_x.vector_x() << 1.0F;
-    kalmanfilter_x.matrix_P() << 1.0F;
-    const kf::Vector<2> vector_z_of_x { Ti_real(0,3), this_pose_3d.x };
-    kalmanfilter_x.predict(matrix_F, matrix_Q );
-    x = kalmanfilter_x.correct(vector_z_of_x, matrix_R, matrix_H);
 
-
-    kalmanfilter_y.vector_x() << 1.0F;
-    kalmanfilter_y.matrix_P() << 1.0F;
-    const kf::Vector<2> vector_z_of_y { Ti_real(1,3), this_pose_3d.y };
-    kalmanfilter_y.predict(matrix_F, matrix_Q );
-    y = kalmanfilter_y.correct(vector_z_of_y, matrix_R, matrix_H);
-    
-    //const kf::Vector<2> vector_z_of_z { Ti_real(2,3), this_pose_3d.z };
-    //kalmanfilter_z.predict(matrix_F, matrix_Q );
-    //double z = kalmanfilter_z.correct(vector_z_of_z, matrix_R, matrix_H);
-
-    z = this_pose_3d.z;
     nav_msgs::OdometryPtr msg_kalman(new nav_msgs::Odometry);
     msg_kalman->header.stamp.fromSec(time_laser_odom_);
     msg_kalman->header.frame_id = "map";
