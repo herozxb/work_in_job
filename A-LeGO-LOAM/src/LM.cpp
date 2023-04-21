@@ -12,11 +12,35 @@
 #include <random>
 #include <cmath>
 
+#include <gtsam/geometry/Rot3.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/Marginals.h>
+#include <gtsam/nonlinear/Values.h>
+
+#include <gtsam/nonlinear/ISAM2.h>
+
+using namespace gtsam;
+
 using namespace std;
 
 class LM
 {
 private:
+
+  NonlinearFactorGraph gtSAMgraph;
+  Values initialEstimate;
+  Values optimizedEstimate;
+  ISAM2 *isam;
+  Values isamCurrentEstimate;
+
+  noiseModel::Diagonal::shared_ptr priorNoise;
+  noiseModel::Diagonal::shared_ptr odometryNoise;
+  noiseModel::Diagonal::shared_ptr constraintNoise;
+  noiseModel::Base::shared_ptr robustNoiseModel;
 
   //initilize the ros node
   ros::NodeHandle nh_;
@@ -64,6 +88,8 @@ private:
   Eigen::Matrix4f Ti_all; 
   Eigen::Matrix4f Ti_real_all; 
   Eigen::Matrix4f Ti_real_last_submap_saved;
+
+  Eigen::Matrix4f Ti_transformLast;  
   
   
   ros::Publisher pub_odom_aft_mapped_2;
@@ -115,9 +141,23 @@ public:
     Ti_real_all = Eigen::Matrix4f::Identity ();
     Ti_real_last_submap_saved = Eigen::Matrix4f::Identity ();
     
+    Ti_transformLast = Eigen::Matrix4f::Identity ();
+    
     pub_odom_aft_mapped_2 = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_2", 10);
     pub_odom_aft_mapped_3 = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_3", 10);
     pub_odom_aft_mapped_kalman = nh_.advertise<nav_msgs::Odometry>("/odom_aft_mapped_kalman", 10);
+    
+    
+    ISAM2Params parameters;
+    parameters.relinearizeThreshold = 0.01;
+    parameters.relinearizeSkip = 1;
+    isam = new ISAM2(parameters);
+    
+    gtsam::Vector Vector6(6);
+    Vector6 << 1e-6, 1e-6, 1e-6, 1e-8, 1e-8, 1e-6;
+    priorNoise = noiseModel::Diagonal::Variances(Vector6);
+    odometryNoise = noiseModel::Diagonal::Variances(Vector6);
+    
   }
   
   
@@ -277,7 +317,7 @@ public:
 	//double pitch = atan2( -rotationMatrix(2,0), std::pow( rotationMatrix(2,1)*rotationMatrix(2,1) +rotationMatrix(2,2)*rotationMatrix(2,2) ,0.5  )  )/3.1415926*180;
 	//std::cout<<"pitch is " << pitch <<std::endl;
 	double yaw_of_cloud_ti_to_map = atan2( rotation_matrix(1,0),rotation_matrix(0,0) )/3.1415926*180;
-	std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
+	//std::cout<<"yaw is " << yaw_of_cloud_ti_to_map <<std::endl;
 	
 	Ti_real = Ti_of_map * Ti;
 	Ti_real_all = Ti_real_last_submap_saved * Ti_real ;
@@ -286,10 +326,10 @@ public:
 		
 	if( abs( Ti_of_map(0,3) ) > 0.2 || abs( Ti_of_map(1,3) ) > 0.2 ||  abs( yaw_of_cloud_ti_to_map ) > 1)
 	{
-	        cout<<"===========Ti_real=============="<<endl;
-	        cout<<Ti_of_map<<endl;
-		cout<<Ti<<endl;
-		cout<<Ti_real<<endl;
+	        //cout<<"===========Ti_real=============="<<endl;
+	        //cout<<Ti_of_map<<endl;
+		//cout<<Ti<<endl;
+		//cout<<Ti_real<<endl;
 		Ti = Ti_real;
 		
 
@@ -360,8 +400,8 @@ public:
         
         pcl::transformPointCloud (*map_final, *map_final_in_all_map, Ti_real_last_submap_saved);
         
-	Ti_real_last_submap_saved = Ti_real_all;
-	*map_all += *map_final_in_all_map;
+	//Ti_real_last_submap_saved = Ti_real_all;
+	//*map_all += *map_final_in_all_map;
 	
 	
 	// Create the filtering object
@@ -371,18 +411,108 @@ public:
 	sor_input.filter (*map_all);
 	
 	
-	/*
+	
 	
 	if( counter_all_map == 0)
 	{
 		Ti_real_last_submap_saved = Ti_real_all;
 		*map_all += *map_final_in_all_map;
 		
+		
+		cout<<"============Ti_real_last_submap_saved_pose[0]============="<<endl;
+		cout<<Ti_real_last_submap_saved<<endl;
+		
+		Eigen::Matrix4f rotation_matrix = Ti_real_last_submap_saved;
+
+		double roll = atan2( rotation_matrix(2,1),rotation_matrix(2,2) );
+		//std::cout<<"roll is " << roll <<std::endl;
+		double pitch = atan2( -rotation_matrix(2,0), std::pow( rotation_matrix(2,1)*rotation_matrix(2,1) +rotation_matrix(2,2)*rotation_matrix(2,2) ,0.5  )  );
+		//std::cout<<"pitch is " << pitch <<std::endl;
+		double yaw = atan2( rotation_matrix(1,0),rotation_matrix(0,0) );
+		
+		
+		gtSAMgraph.add(PriorFactor<Pose3>(0, Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix(0,3), rotation_matrix(1,3), rotation_matrix(2,3))), priorNoise));
+		
+            	initialEstimate.insert(0, Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix(0,3), rotation_matrix(1,3), rotation_matrix(2,3))));
+            
+            	
+            	//update iSAM
+		//cout<<"============gtsam_pose[0]============="<<endl;
+		isam->update(gtSAMgraph, initialEstimate);
+		isam->update();
+		//cout<<"============gtsam_pose[1]============="<<endl;
+		gtSAMgraph.resize(0);
+		initialEstimate.clear();
+		
+		Pose3 latestEstimate;
+		isamCurrentEstimate = isam->calculateEstimate();
+		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
+		
+		cout<<"============gtsam_pose[0]============="<<endl;
+		cout<<latestEstimate<<endl;
+		
+		Ti_transformLast = Ti_real_last_submap_saved;
+            	
+		
 	}
 	else
 	{
+		Ti_real_last_submap_saved = Ti_real_all;
+		*map_all += *map_final_in_all_map;
 		
 		
+		cout<<"============Ti_real_last_submap_saved_pose============="<<endl;
+		cout<<Ti_real_last_submap_saved<<endl;
+	
+		Eigen::Matrix4f rotation_matrix_from = Ti_transformLast;
+
+		double roll = atan2( rotation_matrix_from(2,1),rotation_matrix_from(2,2) );
+		//std::cout<<"roll is " << roll <<std::endl;
+		double pitch = atan2( -rotation_matrix_from(2,0), std::pow( rotation_matrix_from(2,1)*rotation_matrix_from(2,1) +rotation_matrix_from(2,2)*rotation_matrix_from(2,2) ,0.5  )  );
+		//std::cout<<"pitch is " << pitch <<std::endl;
+		double yaw = atan2( rotation_matrix_from(1,0),rotation_matrix_from(0,0) );
+	
+		gtsam::Pose3 poseFrom = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_from(0,3), rotation_matrix_from(1,3), rotation_matrix_from(2,3)));
+		
+		
+		Eigen::Matrix4f rotation_matrix_to = Ti_real_last_submap_saved;
+
+		roll = atan2( rotation_matrix_to(2,1),rotation_matrix_to(2,2) );
+		//std::cout<<"roll is " << roll <<std::endl;
+		pitch = atan2( -rotation_matrix_to(2,0), std::pow( rotation_matrix_to(2,1)*rotation_matrix_to(2,1) +rotation_matrix_to(2,2)*rotation_matrix_to(2,2) ,0.5  )  );
+		//std::cout<<"pitch is " << pitch <<std::endl;
+		yaw = atan2( rotation_matrix_to(1,0),rotation_matrix_to(0,0) );
+		
+		gtsam::Pose3 poseTo   = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_to(0,3), rotation_matrix_to(1,3), rotation_matrix_to(2,3)));
+		
+		gtSAMgraph.add(BetweenFactor<Pose3>(counter_all_map-1, counter_all_map, poseFrom.between(poseTo), odometryNoise));
+		
+		initialEstimate.insert(counter_all_map, Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_to(0,3), rotation_matrix_to(1,3), rotation_matrix_to(2,3))));
+	
+
+		
+		//update iSAM
+		//cout<<"============gtsam_pose[2]============="<<endl;
+		isam->update(gtSAMgraph, initialEstimate);
+		isam->update();
+		//cout<<"============gtsam_pose[3]============="<<endl;
+		gtSAMgraph.resize(0);
+		initialEstimate.clear();
+		
+		Pose3 latestEstimate;
+		isamCurrentEstimate = isam->calculateEstimate();
+		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
+		
+		cout<<"============gtsam_pose============="<<endl;
+		cout<<latestEstimate<<endl;
+		
+		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-2);
+		cout<<latestEstimate<<endl;
+		
+		Ti_transformLast = Ti_real_last_submap_saved;
+		
+		
+		/*
 		// 3.1 boxed the map submap
 		pcl::CropBox<pcl::PointXYZ> box_filter_submap;
 		float x_min = Ti_real_last_submap_saved(0,3) - 50, y_min = Ti_real_last_submap_saved(1,3) - 50, z_min = Ti_real_last_submap_saved(2,3) - 0;
@@ -467,11 +597,54 @@ public:
 			*map_all += *map_final_in_all_map;
 		}
 	
-		
+		//*/
 
 	}
 	//*/
 	
+	
+	if( counter_all_map == 16 )
+	{
+	
+		Eigen::Matrix4f rotation_matrix_from = Ti_real_last_submap_saved;
+
+		double roll = atan2( rotation_matrix_from(2,1),rotation_matrix_from(2,2) );
+		//std::cout<<"roll is " << roll <<std::endl;
+		double pitch = atan2( -rotation_matrix_from(2,0), std::pow( rotation_matrix_from(2,1)*rotation_matrix_from(2,1) +rotation_matrix_from(2,2)*rotation_matrix_from(2,2) ,0.5  )  );
+		//std::cout<<"pitch is " << pitch <<std::endl;
+		double yaw = atan2( rotation_matrix_from(1,0),rotation_matrix_from(0,0) );
+		
+		gtsam::Pose3 poseFrom   = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_from(0,3), rotation_matrix_from(1,3), rotation_matrix_from(2,3)));
+		
+	
+	
+		//gtsam::Pose3 poseFrom = Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(x, y, z));
+               gtsam::Pose3 poseTo = Pose3(Rot3::RzRyRx(0.0, 0.0, 0.0), Point3(20.2164, 1.62224, -0.0866));
+	
+		gtSAMgraph.add(BetweenFactor<Pose3>(16, 0, poseFrom.between(poseTo), robustNoiseModel)); // giseop
+		isam->update(gtSAMgraph);
+		isam->update();
+		
+		Pose3 latestEstimate;
+		isamCurrentEstimate = isam->calculateEstimate();
+		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
+		
+		cout<<"============gtsam_pose_last============="<<endl;
+		cout<<latestEstimate<<endl;
+		
+		latestEstimate = isamCurrentEstimate.at<Pose3>(1);
+		cout<<latestEstimate<<endl;
+		latestEstimate = isamCurrentEstimate.at<Pose3>(2);
+		cout<<latestEstimate<<endl;
+		latestEstimate = isamCurrentEstimate.at<Pose3>(3);
+		cout<<latestEstimate<<endl;
+	
+	}
+	
+	
+	
+	cout<<"====counter_all_map====="<<endl;
+	cout<<counter_all_map<<endl;
 	counter_all_map++;
 	//*/
 

@@ -568,8 +568,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 17.60489273071289
-            Min Value: -8.136741638183594
+            Max Value: 22.799985885620117
+            Min Value: -8.518084526062012
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -661,7 +661,7 @@ Visualization Manager:
         Head Radius: 0.10000000149011612
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
-        Value: Arrow
+        Value: Axes
       Topic: /odom_aft_mapped_2
       Unreliable: false
       Value: true
@@ -763,7 +763,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 43.42341613769531
+      Distance: 26.02032470703125
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -771,9 +771,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 49.488250732421875
-        Y: 7.783275127410889
-        Z: 9.524545669555664
+        X: -5.483283042907715
+        Y: -1.282137393951416
+        Z: 9.524513244628906
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -781,7 +781,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: map
-      Yaw: 1.7609055042266846
+      Yaw: 1.6859055757522583
     Saved: ~
 Window Geometry:
   Displays:
