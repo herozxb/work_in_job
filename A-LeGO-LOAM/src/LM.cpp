@@ -23,6 +23,9 @@
 
 #include <gtsam/nonlinear/ISAM2.h>
 
+#include <gtsam/inference/Key.h>
+#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
+
 using namespace gtsam;
 
 using namespace std;
@@ -36,6 +39,10 @@ private:
   Values optimizedEstimate;
   ISAM2 *isam;
   Values isamCurrentEstimate;
+  
+  
+  NonlinearFactorGraph graph;
+  Values initial;
 
   noiseModel::Diagonal::shared_ptr priorNoise;
   noiseModel::Diagonal::shared_ptr odometryNoise;
@@ -75,7 +82,7 @@ private:
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_final_in_all_map_boxed;
   pcl::PointCloud<pcl::PointXYZ>::Ptr map_all_boxed;
     
-  
+  vector< pcl::PointCloud<pcl::PointXYZ> > store_of_submap;
   
     
   Eigen::Matrix4f Ti;
@@ -90,6 +97,8 @@ private:
   Eigen::Matrix4f Ti_real_last_submap_saved;
 
   Eigen::Matrix4f Ti_transformLast;  
+  
+  vector< Eigen::Matrix4f > store_of_Ti;
   
   
   ros::Publisher pub_odom_aft_mapped_2;
@@ -414,100 +423,75 @@ public:
 	
 	
 	if( counter_all_map == 0)
-	{
+	{	
+		Pose3 poseStart = Pose3(Rot3::RzRyRx(0, 0, 0), Point3(0, 0, 0));
+		graph.add( PriorFactor<Pose3>(0, poseStart, priorNoise) );
+            	initial.insert( 0, poseStart );
+	
+		cout<<"============gtsam_pose[0]============="<<endl;
+		cout<<poseStart<<endl;
+	
+		store_of_Ti.push_back(Ti_real_last_submap_saved);
+		store_of_submap.push_back(*map_final);
+		
 		Ti_real_last_submap_saved = Ti_real_all;
 		*map_all += *map_final_in_all_map;
+
 		
-		
-		cout<<"============Ti_real_last_submap_saved_pose[0]============="<<endl;
-		cout<<Ti_real_last_submap_saved<<endl;
+		//cout<<"============Ti_real_last_submap_saved_pose[0]============="<<endl;
+		//cout<<Ti_real_last_submap_saved<<endl;
 		
 		Eigen::Matrix4f rotation_matrix = Ti_real_last_submap_saved;
-
 		double roll = atan2( rotation_matrix(2,1),rotation_matrix(2,2) );
-		//std::cout<<"roll is " << roll <<std::endl;
 		double pitch = atan2( -rotation_matrix(2,0), std::pow( rotation_matrix(2,1)*rotation_matrix(2,1) +rotation_matrix(2,2)*rotation_matrix(2,2) ,0.5  )  );
-		//std::cout<<"pitch is " << pitch <<std::endl;
 		double yaw = atan2( rotation_matrix(1,0),rotation_matrix(0,0) );
 		
 		
-		gtSAMgraph.add(PriorFactor<Pose3>(0, Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix(0,3), rotation_matrix(1,3), rotation_matrix(2,3))), priorNoise));
+		Key key1 = counter_all_map + 1;
+		gtsam::Pose3 pose1 = Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix(0,3), rotation_matrix(1,3), rotation_matrix(2,3)));
 		
-            	initialEstimate.insert(0, Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix(0,3), rotation_matrix(1,3), rotation_matrix(2,3))));
+		
+		graph.add( BetweenFactor<Pose3>( 0, key1, poseStart.between(pose1), odometryNoise));
+		
+            	initial.insert( key1, pose1 );
+  		
+		cout<<"============gtsam_pose[1]============="<<endl;
+		cout<<pose1<<endl;          
             
-            	
-            	//update iSAM
-		//cout<<"============gtsam_pose[0]============="<<endl;
-		isam->update(gtSAMgraph, initialEstimate);
-		isam->update();
-		//cout<<"============gtsam_pose[1]============="<<endl;
-		gtSAMgraph.resize(0);
-		initialEstimate.clear();
-		
-		Pose3 latestEstimate;
-		isamCurrentEstimate = isam->calculateEstimate();
-		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
-		
-		cout<<"============gtsam_pose[0]============="<<endl;
-		cout<<latestEstimate<<endl;
-		
 		Ti_transformLast = Ti_real_last_submap_saved;
             	
 		
 	}
 	else
 	{
+		store_of_Ti.push_back(Ti_real_last_submap_saved);
 		Ti_real_last_submap_saved = Ti_real_all;
 		*map_all += *map_final_in_all_map;
+		store_of_submap.push_back(*map_final);
 		
 		
-		cout<<"============Ti_real_last_submap_saved_pose============="<<endl;
-		cout<<Ti_real_last_submap_saved<<endl;
-	
-		Eigen::Matrix4f rotation_matrix_from = Ti_transformLast;
 
+		Eigen::Matrix4f rotation_matrix_from = Ti_transformLast;
 		double roll = atan2( rotation_matrix_from(2,1),rotation_matrix_from(2,2) );
-		//std::cout<<"roll is " << roll <<std::endl;
 		double pitch = atan2( -rotation_matrix_from(2,0), std::pow( rotation_matrix_from(2,1)*rotation_matrix_from(2,1) +rotation_matrix_from(2,2)*rotation_matrix_from(2,2) ,0.5  )  );
-		//std::cout<<"pitch is " << pitch <<std::endl;
 		double yaw = atan2( rotation_matrix_from(1,0),rotation_matrix_from(0,0) );
 	
 		gtsam::Pose3 poseFrom = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_from(0,3), rotation_matrix_from(1,3), rotation_matrix_from(2,3)));
 		
-		
 		Eigen::Matrix4f rotation_matrix_to = Ti_real_last_submap_saved;
-
 		roll = atan2( rotation_matrix_to(2,1),rotation_matrix_to(2,2) );
-		//std::cout<<"roll is " << roll <<std::endl;
 		pitch = atan2( -rotation_matrix_to(2,0), std::pow( rotation_matrix_to(2,1)*rotation_matrix_to(2,1) +rotation_matrix_to(2,2)*rotation_matrix_to(2,2) ,0.5  )  );
-		//std::cout<<"pitch is " << pitch <<std::endl;
 		yaw = atan2( rotation_matrix_to(1,0),rotation_matrix_to(0,0) );
 		
 		gtsam::Pose3 poseTo   = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_to(0,3), rotation_matrix_to(1,3), rotation_matrix_to(2,3)));
 		
-		gtSAMgraph.add(BetweenFactor<Pose3>(counter_all_map-1, counter_all_map, poseFrom.between(poseTo), odometryNoise));
 		
-		initialEstimate.insert(counter_all_map, Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_to(0,3), rotation_matrix_to(1,3), rotation_matrix_to(2,3))));
-	
-
+		Key key = counter_all_map + 1;
+		graph.add( BetweenFactor<Pose3>( key-1, key, poseFrom.between(poseTo), odometryNoise) );
+		initial.insert( key, poseTo );
 		
-		//update iSAM
-		//cout<<"============gtsam_pose[2]============="<<endl;
-		isam->update(gtSAMgraph, initialEstimate);
-		isam->update();
-		//cout<<"============gtsam_pose[3]============="<<endl;
-		gtSAMgraph.resize(0);
-		initialEstimate.clear();
-		
-		Pose3 latestEstimate;
-		isamCurrentEstimate = isam->calculateEstimate();
-		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
-		
-		cout<<"============gtsam_pose============="<<endl;
-		cout<<latestEstimate<<endl;
-		
-		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-2);
-		cout<<latestEstimate<<endl;
+		cout<<"============gtsam_pose["<<key<<"]============="<<endl;
+		cout<<poseTo<<endl;
 		
 		Ti_transformLast = Ti_real_last_submap_saved;
 		
@@ -606,39 +590,35 @@ public:
 	if( counter_all_map == 16 )
 	{
 	
-		Eigen::Matrix4f rotation_matrix_from = Ti_real_last_submap_saved;
+		Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 7 / 180.0 * 3.1415926 ), Point3(10, 0, 0));
+		graph.add(BetweenFactor<Pose3>(17, 0, delta, odometryNoise));
 
-		double roll = atan2( rotation_matrix_from(2,1),rotation_matrix_from(2,2) );
-		//std::cout<<"roll is " << roll <<std::endl;
-		double pitch = atan2( -rotation_matrix_from(2,0), std::pow( rotation_matrix_from(2,1)*rotation_matrix_from(2,1) +rotation_matrix_from(2,2)*rotation_matrix_from(2,2) ,0.5  )  );
-		//std::cout<<"pitch is " << pitch <<std::endl;
-		double yaw = atan2( rotation_matrix_from(1,0),rotation_matrix_from(0,0) );
+		GaussNewtonParams parameters;
+		parameters.setVerbosity("ERROR");
+		parameters.setMaxIterations(20);
+		parameters.setLinearSolverType("MULTIFRONTAL_QR");
+		GaussNewtonOptimizer optimizer(graph, initial, parameters);
+    		Values result = optimizer.optimize();
+    		cout<<"============gtsam_pose_last[16]============="<<endl;
+    		result.print("Final Result:\n");
+ 
+		map_all.reset(new pcl::PointCloud<pcl::PointXYZ>);
 		
-		gtsam::Pose3 poseFrom   = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_from(0,3), rotation_matrix_from(1,3), rotation_matrix_from(2,3)));
+		for( int i = 0; i < store_of_submap.size(); i++)
+		{
 		
-	
-	
-		//gtsam::Pose3 poseFrom = Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(x, y, z));
-               gtsam::Pose3 poseTo = Pose3(Rot3::RzRyRx(0.0, 0.0, 0.0), Point3(20.2164, 1.62224, -0.0866));
-	
-		gtSAMgraph.add(BetweenFactor<Pose3>(16, 0, poseFrom.between(poseTo), robustNoiseModel)); // giseop
-		isam->update(gtSAMgraph);
-		isam->update();
+			Pose3 pose_optimized = result.at<Pose3>(i);
+			
+			Eigen::Matrix4f matrix = Eigen::Matrix4f::Identity();
+			matrix(0,3) = pose_optimized.translation().x();
+			matrix(1,3) = pose_optimized.translation().y();
+			matrix(2,3) = pose_optimized.translation().z();
+			matrix.block<3,3>(0,0) = pose_optimized.rotation().matrix().cast<float>();
+
+			pcl::transformPointCloud (store_of_submap[i], *map_final_in_all_map, matrix);
+			*map_all += *map_final_in_all_map;
 		
-		Pose3 latestEstimate;
-		isamCurrentEstimate = isam->calculateEstimate();
-		latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
-		
-		cout<<"============gtsam_pose_last============="<<endl;
-		cout<<latestEstimate<<endl;
-		
-		latestEstimate = isamCurrentEstimate.at<Pose3>(1);
-		cout<<latestEstimate<<endl;
-		latestEstimate = isamCurrentEstimate.at<Pose3>(2);
-		cout<<latestEstimate<<endl;
-		latestEstimate = isamCurrentEstimate.at<Pose3>(3);
-		cout<<latestEstimate<<endl;
-	
+		}
 	}
 	
 	
@@ -690,8 +670,186 @@ public:
 
   
 
+
   void publish_transform()
   {
+  /*
+    //cout<<"=============================gtsam================================"<<endl;
+    // Create an empty nonlinear factor graph
+    NonlinearFactorGraph graph;
+
+
+    // Create nodes for poses
+    Key key0 = 0;
+    Pose3 pose0 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(0, 0, 0));
+    graph.add(PriorFactor<Pose3>(key0, pose0, priorNoise));
+
+    Key key1 = 1;
+    Pose3 pose1 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(19.937, 1.58683, -0.0735078));
+    //graph.add(PriorFactor<Pose3>(key1, pose1, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key0, key1, pose0.between(pose1), odometryNoise) );
+    
+    Key key2 = 2;
+    Pose3 pose2 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(40.0102, 2.95417, 0.208698));
+    //graph.add(PriorFactor<Pose3>(key2, pose2, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key1, key2, pose1.between(pose2), odometryNoise) );
+    
+    Key key3 = 3;
+    Pose3 pose3 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(60.0076, 4.72064, 0.442247));
+    //graph.add(PriorFactor<Pose3>(key3, pose3, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key2, key3, pose2.between(pose3), odometryNoise) );
+        
+    Key key4 = 4;
+    Pose3 pose4 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(80.0099, 3.84813, 1.07191));
+    //graph.add(PriorFactor<Pose3>(key4, pose4, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key3, key4, pose3.between(pose4), odometryNoise) );
+        
+    Key key5 = 5;
+    Pose3 pose5 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(89.4686, 21.664, 0.764092));
+    //graph.add(PriorFactor<Pose3>(key5, pose5, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key4, key5, pose4.between(pose5), odometryNoise) );
+    
+    Key key6 = 6;
+    Pose3 pose6 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(88.8599, 41.8002, -0.207314));
+    //graph.add(PriorFactor<Pose3>(key6, pose6, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key5, key6, pose5.between(pose6), odometryNoise) );
+        
+    Key key7 = 7;
+    Pose3 pose7 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(88.9515, 61.9931, -0.959105));
+    //graph.add(PriorFactor<Pose3>(key7, pose7, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key6, key7, pose6.between(pose7), odometryNoise) );
+    
+    Key key8 = 8;
+    Pose3 pose8 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(71.9809, 72.9971, -2.12171));
+    //graph.add(PriorFactor<Pose3>(key8, pose8, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key7, key8, pose7.between(pose8), odometryNoise) );
+        
+    Key key9 = 9;
+    Pose3 pose9 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(52.0043, 71.1755, -2.63081));
+    //graph.add(PriorFactor<Pose3>(key9, pose9, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key8, key9, pose8.between(pose9), odometryNoise) );
+        
+    Key key10 = 10;
+    Pose3 pose10 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(31.7302, 70.3087, -3.12473));
+    //graph.add(PriorFactor<Pose3>(key10, pose10, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key9, key10, pose9.between(pose10), odometryNoise) );
+    
+    Key key11 = 11;
+    Pose3 pose11 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(7.37467, 66.3194, -3.17033));
+    //graph.add(PriorFactor<Pose3>(key11, pose11, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key10, key11, pose10.between(pose11), odometryNoise) );
+        
+    Key key12 = 12;
+    Pose3 pose12 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(-12.4448, 62.2355, -3.78316));
+    //graph.add(PriorFactor<Pose3>(key12, pose12, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key11, key12, pose11.between(pose12), odometryNoise) );
+    
+    Key key13 = 13;
+    Pose3 pose13 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(-32.2329, 58.5376, -4.56917));
+    //graph.add(PriorFactor<Pose3>(key13, pose13, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key12, key13, pose12.between(pose13), odometryNoise) );
+        
+    Key key14 = 14;
+    Pose3 pose14 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(-34.7876, 38.4754, -3.56393));
+    //graph.add(PriorFactor<Pose3>(key14, pose14, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key13, key14, pose13.between(pose14), odometryNoise) );
+        
+    Key key15 = 15;
+    Pose3 pose15 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(-31.1013, 18.817, -2.62447));
+    //graph.add(PriorFactor<Pose3>(key15, pose15, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key14, key15, pose14.between(pose15), odometryNoise) );
+    
+    Key key16 = 16;
+    Pose3 pose16 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(-26.0441, -0.600962,-1.580031));
+    //graph.add(PriorFactor<Pose3>(key16, pose16, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key15, key16, pose15.between(pose16), odometryNoise) );
+        
+    Key key17 = 17;
+    Pose3 pose17 = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(-6.91262, -6.52808, -1.40291));
+    //graph.add(PriorFactor<Pose3>(key17, pose17, priorNoise));
+    graph.add( BetweenFactor<Pose3>( key16, key17, pose16.between(pose17), odometryNoise) );
+    
+    //cout<<pose1.between(pose2)<<endl;
+
+    // Create factor between poses
+    Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 0), Point3(0, 0, 0));
+    graph.add(BetweenFactor<Pose3>(17, 0, delta, odometryNoise));
+
+    // Define initial estimates
+    Values initial;
+    initial.insert(key0, pose0);
+    initial.insert(key1, pose1);
+    initial.insert(key2, pose2);
+    initial.insert(key3, pose3);
+    initial.insert(key4, pose4);
+    initial.insert(key5, pose5);
+    initial.insert(key6, pose6);
+    initial.insert(key7, pose7);
+    initial.insert(key8, pose8);
+    initial.insert(key9, pose9);
+    initial.insert(key10, pose10);
+    initial.insert(key11, pose11);
+    initial.insert(key12, pose12);
+    initial.insert(key13, pose13);
+    initial.insert(key14, pose14);
+    initial.insert(key15, pose15);
+    initial.insert(key16, pose16);
+    initial.insert(key17, pose17);
+/*
+    // Run optimization
+    GaussNewtonParams parameters;
+    parameters.setVerbosity("ERROR");
+    parameters.setMaxIterations(20);
+    parameters.setLinearSolverType("MULTIFRONTAL_QR");
+    GaussNewtonOptimizer optimizer(graph, initial, parameters);
+    Values result = optimizer.optimize();
+
+    //result.print("Final Result:\n");
+    
+/*
+    // Retrieve optimized poses
+    Pose3 pose0_optimized = result.at<Pose3>(key0);
+    Pose3 pose1_optimized = result.at<Pose3>(key1);
+    Pose3 pose2_optimized = result.at<Pose3>(key2);
+    Pose3 pose3_optimized = result.at<Pose3>(key3);
+    Pose3 pose4_optimized = result.at<Pose3>(key4);
+    Pose3 pose5_optimized = result.at<Pose3>(key5);
+    Pose3 pose6_optimized = result.at<Pose3>(key6);
+    Pose3 pose7_optimized = result.at<Pose3>(key7);
+    Pose3 pose8_optimized = result.at<Pose3>(key8);
+    Pose3 pose9_optimized = result.at<Pose3>(key9);
+    Pose3 pose10_optimized = result.at<Pose3>(key10);
+    Pose3 pose11_optimized = result.at<Pose3>(key11);
+    Pose3 pose12_optimized = result.at<Pose3>(key12);
+    Pose3 pose13_optimized = result.at<Pose3>(key13);
+    Pose3 pose14_optimized = result.at<Pose3>(key14);
+    Pose3 pose15_optimized = result.at<Pose3>(key15);
+    Pose3 pose16_optimized = result.at<Pose3>(key16);
+    Pose3 pose17_optimized = result.at<Pose3>(key17);
+
+
+    cout<<"================result====================="<<endl; 
+    cout<<pose0_optimized<<endl;    
+    cout<<pose1_optimized<<endl;
+    cout<<pose2_optimized<<endl;
+    cout<<pose3_optimized<<endl;
+    cout<<pose4_optimized<<endl;
+    cout<<pose5_optimized<<endl;
+    cout<<pose6_optimized<<endl;
+    cout<<pose7_optimized<<endl;
+    cout<<pose8_optimized<<endl;
+    cout<<pose9_optimized<<endl;
+    cout<<pose10_optimized<<endl;
+    cout<<pose11_optimized<<endl;
+    cout<<pose12_optimized<<endl;
+    cout<<pose13_optimized<<endl;
+    cout<<pose14_optimized<<endl;
+    cout<<pose15_optimized<<endl;
+    cout<<pose16_optimized<<endl;
+    cout<<pose17_optimized<<endl;
+//*/
+
+    //cout<<graph<<endl;
   
     //cout<<"=============================Odometry================================"<<endl;
     //cout<< Ti_real <<endl;

@@ -10,6 +10,7 @@ Panels:
         - /LaserMapping1/1.input_right_now_frame1
         - /LaserMapping1/5.map_all1
         - /Odometry_Ti_real1
+        - /Odometry_Ti_real1/Shape1
         - /Odometry_Ti1/Shape1
         - /Odometry_Ti_map1
       Splitter Ratio: 0.5
@@ -568,8 +569,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 22.799985885620117
-            Min Value: -8.518084526062012
+            Max Value: 15.97319221496582
+            Min Value: -6.965839385986328
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -656,12 +657,12 @@ Visualization Manager:
         Alpha: 1
         Axes Length: 1
         Axes Radius: 0.10000000149011612
-        Color: 255; 25; 0
+        Color: 252; 233; 79
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
         Shaft Length: 1
         Shaft Radius: 0.05000000074505806
-        Value: Axes
+        Value: Arrow
       Topic: /odom_aft_mapped_2
       Unreliable: false
       Value: true
