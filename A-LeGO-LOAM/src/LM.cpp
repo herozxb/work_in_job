@@ -478,6 +478,10 @@ public:
 	
 		gtsam::Pose3 poseFrom = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_from(0,3), rotation_matrix_from(1,3), rotation_matrix_from(2,3)));
 		
+		
+		//cout<<"["<<counter_all_map+1<<"]key"<<endl;
+		//cout<<Ti_real_last_submap_saved<<endl;
+		
 		Eigen::Matrix4f rotation_matrix_to = Ti_real_last_submap_saved;
 		roll = atan2( rotation_matrix_to(2,1),rotation_matrix_to(2,2) );
 		pitch = atan2( -rotation_matrix_to(2,0), std::pow( rotation_matrix_to(2,1)*rotation_matrix_to(2,1) +rotation_matrix_to(2,2)*rotation_matrix_to(2,2) ,0.5  )  );
@@ -492,6 +496,7 @@ public:
 		
 		cout<<"============gtsam_pose["<<key<<"]============="<<endl;
 		cout<<poseTo<<endl;
+		cout<<"roll="<<roll<<"pitch="<<pitch<<"yaw="<<yaw<<endl;
 		
 		Ti_transformLast = Ti_real_last_submap_saved;
 		
@@ -589,8 +594,23 @@ public:
 	
 	if( counter_all_map == 16 )
 	{
+		//15
+		//x: -31.651447296142578
+      		//y: -1.059554934501648
+      		//z: 1.4097779989242554
+      		
+      		
+      		//16
+      		//[-31.5993, 2.37452, 0.641922]';  roll=-0.0108406pitch=-0.0143729yaw=-1.20206
+
+		//17
+		//[-13.0324, -5.68891, 0.677139]';
+		//roll=-0.00222321pitch=0.0277029yaw=0.258455
+
+
 	
-		Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 7 / 180.0 * 3.1415926 ), Point3(10, 0, 0));
+		//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 20 / 180.0 * 3.1415926 ), Point3(30, 0, 0));
+		Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -0.258455), Point3(10, -2, 0));
 		graph.add(BetweenFactor<Pose3>(17, 0, delta, odometryNoise));
 
 		GaussNewtonParams parameters;
@@ -607,6 +627,9 @@ public:
 		for( int i = 0; i < store_of_submap.size(); i++)
 		{
 		
+			cout<<"=================submap["<<i<<"]======================="<<endl;
+			cout<<store_of_Ti[i]<<endl;
+			cout<<result.at<Pose3>(i)<<endl;
 			Pose3 pose_optimized = result.at<Pose3>(i);
 			
 			Eigen::Matrix4f matrix = Eigen::Matrix4f::Identity();
