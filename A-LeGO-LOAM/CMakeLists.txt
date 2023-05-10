@@ -20,6 +20,7 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(Ceres REQUIRED)
+find_package(OpenCV REQUIRED)
 
 add_message_files(
   DIRECTORY msg
@@ -60,6 +61,6 @@ include_directories(
 #add_executable(LO src/LO.cpp)
 #target_link_libraries(LO ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-add_executable(LM src/LM.cpp)
-target_link_libraries(LM ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} rt gtsam)
+add_executable(LM src/LM.cpp include/Scancontext/Scancontext.cpp)
+target_link_libraries(LM ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS} rt gtsam)
 

@@ -96,6 +96,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRPYT,
 
 typedef PointXYZIRPYT PointTypePose;
 
+/*
 class TicToc
 {
 public:
@@ -118,7 +119,7 @@ public:
 private:
   std::chrono::time_point<std::chrono::system_clock> start, end;
 };
-
+//*/
 class CornerCostFunction : public ceres::SizedCostFunction<1, 6>
 {
 public:

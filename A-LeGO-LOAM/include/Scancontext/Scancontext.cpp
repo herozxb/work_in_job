@@ -1,4 +1,6 @@
 #include "Scancontext.h"
+#include "tictoc.h"
+
 
 // namespace SC2
 // {
@@ -250,7 +252,8 @@ std::pair<int, float> SCManager::detectLoopClosureID ( void )
 
     auto curr_key = polarcontext_invkeys_mat_.back(); // current observation (query)
     auto curr_desc = polarcontexts_.back(); // current observation (query)
-
+    
+    std::cout<<"id0="<<loop_id<<"["<<polarcontext_invkeys_mat_.size()<<"]"<<endl;
     /* 
      * step 1: candidates from ringkey tree_
      */
@@ -260,6 +263,8 @@ std::pair<int, float> SCManager::detectLoopClosureID ( void )
         return result; // Early return 
     }
 
+    std::cout<<"id1="<<loop_id<<endl;
+    
     // tree_ reconstruction (not mandatory to make everytime)
     if( tree_making_period_conter % TREE_MAKING_PERIOD_ == 0) // to save computation cost
     {
@@ -332,7 +337,7 @@ std::pair<int, float> SCManager::detectLoopClosureID ( void )
     // To do: return also nn_align (i.e., yaw diff)
     float yaw_diff_rad = deg2rad(nn_align * PC_UNIT_SECTORANGLE);
     std::pair<int, float> result {loop_id, yaw_diff_rad};
-
+    std::cout<<"id="<<loop_id<<endl;
     return result;
 
 } // SCManager::detectLoopClosureID
