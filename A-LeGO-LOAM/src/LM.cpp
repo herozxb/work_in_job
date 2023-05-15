@@ -437,7 +437,7 @@ public:
  	
     int SCclosestHistoryFrameID; // giseop 
     bool loop_detected = false;
-    if(  counter % 30 == 0 )
+    if(  counter % 20 == 0 )
     {
     	cout<<"=====================scManager====================="<<endl;
 	pcl::PointCloud<pcl::PointXYZI>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<pcl::PointXYZI>());
@@ -753,26 +753,25 @@ public:
 
 	cout<<"============gtsam_pose["<<key<<"]============="<<endl;
 	cout<<poseTo<<endl;
-	cout<<"roll="<<roll<<"pitch="<<pitch<<"yaw="<<yaw<<endl;
+	cout<<"roll="<<roll<<",pitch="<<pitch<<",yaw="<<yaw<<endl;
 	
 	cout<<"should be Point3(10, -2, 0)) = "<< poseFrom.between(poseTo) <<endl;
 	
-	
-	
-    
-    
-   
-    
+
+	double x_guess = poseFrom.between(poseTo) .translation().x();
+	double y_guess = poseFrom.between(poseTo) .translation().y();
+	double z_guess = poseFrom.between(poseTo) .translation().z();
+
 	// ICP Settings
 	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> gicp;
 	gicp.setMaxCorrespondenceDistance(50); // giseop , use a value can cover 2*historyKeyframeSearchNum range in meter 
 	gicp.setMaxCorrespondenceDistance(10.0);
 	gicp.setTransformationEpsilon(0.001);
 	gicp.setMaximumIterations(1000);
-	cout<<"=====1====="<<endl;
+
 	pcl::PointCloud<pcl::PointXYZI>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<pcl::PointXYZI>());
 	pcl::copyPointCloud(*map_final,  *thisRawCloudKeyFrame);
-	cout<<"=====2====="<<endl;
+
 	// Align pointclouds
 	gicp.setInputSource( thisRawCloudKeyFrame );
 	cout<<SCclosestHistoryFrameID-1<<endl;
@@ -781,7 +780,6 @@ public:
 	pcl::PointCloud<pcl::PointXYZI>::Ptr unused_result(new pcl::PointCloud<pcl::PointXYZI>());
 	gicp.align(*unused_result);
 
-	cout<<"=====3====="<<endl;
 
 	float loopFitnessScoreThreshold = 0.3; // user parameter but fixed low value is safe. 
 	if (gicp.hasConverged() == false || gicp.getFitnessScore() > loopFitnessScoreThreshold) {
@@ -790,7 +788,6 @@ public:
 		std::cout << "[SC loop] ICP fitness test passed (" << gicp.getFitnessScore() << " < " << loopFitnessScoreThreshold << "). Add this SC loop." << gicp.getFinalTransformation () <<std::endl;
 	}
 
-    	cout<<"=====4====="<<endl;
     	store_of_submap.push_back(*map_final);
     
 	Eigen::Matrix4f Ti_for_submap_end = gicp.getFinalTransformation (); 
@@ -801,6 +798,8 @@ public:
 	double x = rotation_matrix(0,3);
 	double y = rotation_matrix(1,3);
 	double z = rotation_matrix(2,3);    
+	
+	cout<<"yaw="<<yaw_of_loop_end<<",x="<<x<<",y="<<y<<",z="<<z<<endl;
     
     	//pcl::copyPointCloud(*unused_result,  *map_final);
     	//*map_all += *map_final;
@@ -813,8 +812,8 @@ public:
 	//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 20 / 180.0 * 3.1415926 ), Point3(30, 0, 0));
 	//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -0.258455), Point3(10, -2, 0));
 	
-	cout<<"=====5====="<<endl;
-	Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -yaw_of_loop_end), Point3(x, y, z));
+
+	Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -yaw_of_loop_end), Point3(x_guess, y_guess, 0));
 	graph.add(BetweenFactor<Pose3>( counter_all_map + 1 , 0, delta, odometryNoise));
 
 	GaussNewtonParams parameters;
@@ -826,7 +825,6 @@ public:
 	//cout<<"============gtsam_pose_last[16]============="<<endl;
 	//result.print("Final Result:\n");
 
-	cout<<"=====6====="<<endl;
 
 	graph_optimization_done = true;
 
