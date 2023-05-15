@@ -110,6 +110,11 @@ private:
   ros::Publisher pub_odom_aft_mapped_2;
   ros::Publisher pub_odom_aft_mapped_3;   
   ros::Publisher pub_odom_aft_mapped_kalman; 
+  
+  bool is_a_accurate_Ti; 
+  vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloud_for_scan_context;
+  int counter_for_scan_context;
+  bool graph_optimization_done;
     
 public:
 
@@ -172,6 +177,10 @@ public:
     Vector6 << 1e-6, 1e-6, 1e-6, 1e-8, 1e-8, 1e-6;
     priorNoise = noiseModel::Diagonal::Variances(Vector6);
     odometryNoise = noiseModel::Diagonal::Variances(Vector6);
+    
+    bool is_a_accurate_Ti = false;
+    counter_for_scan_context=0;
+    graph_optimization_done = false;
     
   }
   
@@ -387,7 +396,7 @@ public:
 	    
             
             
-            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.3 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.3 ) 
+            if( abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.2 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.2 ) 
             {
             
 		Ti = gicp_for_add_to_map_final.getFinalTransformation () * Ti;
@@ -398,6 +407,22 @@ public:
 		msg_second->header.stamp.fromSec(0);
 		msg_second->header.frame_id = "map";
 		pub_history_keyframes_.publish(msg_second);   
+		
+		/*
+		Eigen::Matrix4f Ti_for_submap_start = gicp_for_map.getFinalTransformation (); 
+		Eigen::Matrix4f rotation_matrix = Ti_for_submap_start;
+
+		double yaw_of_cloud_ti_to_map = atan2( rotation_matrix(1,0),rotation_matrix(0,0) )/3.1415926*180;
+		
+		//cout<<"yaw_of_cloud_ti_to_map="<<yaw_of_cloud_ti_to_map<<endl;
+		
+		if(  yaw_of_cloud_ti_to_map < 0.1  && abs( gicp_for_add_to_map_final.getFinalTransformation ()(0,3) ) < 0.1 && abs( gicp_for_add_to_map_final.getFinalTransformation ()(1,3) ) < 0.1 ) 
+		{
+			is_a_accurate_Ti = true;
+		}
+		//*/
+		
+		
 	    }   
 	}
     }
@@ -409,17 +434,23 @@ public:
   //*/   
   
   
+ 	
+    int SCclosestHistoryFrameID; // giseop 
     bool loop_detected = false;
-    if(  counter % 10 == 0 )
+    if(  counter % 30 == 0 )
     {
-    
+    	cout<<"=====================scManager====================="<<endl;
 	pcl::PointCloud<pcl::PointXYZI>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<pcl::PointXYZI>());
 	pcl::copyPointCloud(*map_final,  *thisRawCloudKeyFrame);
 	scManager.makeAndSaveScancontextAndKeys(*thisRawCloudKeyFrame);
 	
+	
+	cloud_for_scan_context.push_back(thisRawCloudKeyFrame);
 	//cout<<(*thisRawCloudKeyFrame).points[0]<<endl;
 	
-	int SCclosestHistoryFrameID; // giseop 
+	cout<<"counter_for_scan_context="<<counter_for_scan_context<<endl;
+	counter_for_scan_context++;
+
 	float yawDiffRad;
 	auto detectResult = scManager.detectLoopClosureID(); // first: nn index, second: yaw diff 
 	SCclosestHistoryFrameID = detectResult.first;
@@ -429,19 +460,25 @@ public:
 		const int prev_node_idx = SCclosestHistoryFrameID;
 		const int curr_node_idx = counter_all_map; // because cpp starts 0 and ends n-1
 		cout << "Loop detected! - between " << prev_node_idx << " and " << curr_node_idx << "" << endl;
-		loop_detected = true;
+		
+		if( counter_all_map > 1)
+		{
+			loop_detected = true;
+		}
 	}
 	
-	cout<<"=====================scManager[16]====================="<<endl;
-	cout<<SCclosestHistoryFrameID<<endl;
-	cout<<yawDiffRad<<endl;
+	//cout<<"=====================scManager====================="<<endl;
+	//cout<<SCclosestHistoryFrameID<<endl;
+	//cout<<yawDiffRad<<endl;
 
     }
-  
+    
+    //cout<<"accurate_Ti"<<is_a_accurate_Ti<<endl;
+    //if( sqrt( Ti_real(0,3)*Ti_real(0,3) + Ti_real(1,3)*Ti_real(1,3) ) > 20 && is_a_accurate_Ti == true )  
     if( sqrt( Ti_real(0,3)*Ti_real(0,3) + Ti_real(1,3)*Ti_real(1,3) ) > 20 )
     {
     
-        
+        //cout<<"is_a_accurate_Ti = true"<<endl;
         pcl::transformPointCloud (*map_final, *map_final_in_all_map, Ti_real_last_submap_saved);
         
 	//Ti_real_last_submap_saved = Ti_real_all;
@@ -646,52 +683,6 @@ public:
 	}
 	//*/
 	
-
-
-	//if( counter_all_map == 16 )
-	if( loop_detected )
-	{
-
-		//17
-		//[-13.0324, -5.68891, 0.677139]';
-		//roll=-0.00222321pitch=0.0277029yaw=0.258455
-
-		//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 20 / 180.0 * 3.1415926 ), Point3(30, 0, 0));
-		Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -0.258455), Point3(10, -2, 0));
-		graph.add(BetweenFactor<Pose3>(17, 0, delta, odometryNoise));
-
-		GaussNewtonParams parameters;
-		parameters.setVerbosity("ERROR");
-		parameters.setMaxIterations(20);
-		parameters.setLinearSolverType("MULTIFRONTAL_QR");
-		GaussNewtonOptimizer optimizer(graph, initial, parameters);
-    		Values result = optimizer.optimize();
-    		//cout<<"============gtsam_pose_last[16]============="<<endl;
-    		//result.print("Final Result:\n");
- 
-		map_all.reset(new pcl::PointCloud<pcl::PointXYZ>);
-		
-		for( int i = 0; i < store_of_submap.size(); i++)
-		{
-		
-			//cout<<"=================submap["<<i<<"]======================="<<endl;
-			//cout<<store_of_Ti[i]<<endl;
-			//cout<<result.at<Pose3>(i)<<endl;
-			Pose3 pose_optimized = result.at<Pose3>(i);
-			
-			Eigen::Matrix4f matrix = Eigen::Matrix4f::Identity();
-			matrix(0,3) = pose_optimized.translation().x();
-			matrix(1,3) = pose_optimized.translation().y();
-			matrix(2,3) = pose_optimized.translation().z();
-			matrix.block<3,3>(0,0) = pose_optimized.rotation().matrix().cast<float>();
-
-			pcl::transformPointCloud (store_of_submap[i], *map_final_in_all_map, matrix);
-			*map_all += *map_final_in_all_map;
-		
-		}
-	}
-	
-	
 	
 	cout<<"====counter_all_map====="<<endl;
 	cout<<counter_all_map<<endl;
@@ -732,16 +723,99 @@ public:
 
     }
     
-    if( loop_detected )
+    is_a_accurate_Ti = false;
+    
+    if( loop_detected && graph_optimization_done == false )
     {
+    
+	Eigen::Matrix4f rotation_matrix_from = Ti_transformLast;
+	double roll = atan2( rotation_matrix_from(2,1),rotation_matrix_from(2,2) );
+	double pitch = atan2( -rotation_matrix_from(2,0), std::pow( rotation_matrix_from(2,1)*rotation_matrix_from(2,1) +rotation_matrix_from(2,2)*rotation_matrix_from(2,2) ,0.5  )  );
+	double yaw = atan2( rotation_matrix_from(1,0),rotation_matrix_from(0,0) );
+
+	gtsam::Pose3 poseFrom = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_from(0,3), rotation_matrix_from(1,3), rotation_matrix_from(2,3)));
+
+
+	//cout<<"["<<counter_all_map+1<<"]key"<<endl;
+	//cout<<Ti_real_last_submap_saved<<endl;
+
+	Eigen::Matrix4f rotation_matrix_to = Ti_real_all;
+	roll = atan2( rotation_matrix_to(2,1),rotation_matrix_to(2,2) );
+	pitch = atan2( -rotation_matrix_to(2,0), std::pow( rotation_matrix_to(2,1)*rotation_matrix_to(2,1) +rotation_matrix_to(2,2)*rotation_matrix_to(2,2) ,0.5  )  );
+	yaw = atan2( rotation_matrix_to(1,0),rotation_matrix_to(0,0) );
+
+	gtsam::Pose3 poseTo   = Pose3( Rot3::RzRyRx(roll, pitch, yaw), Point3(rotation_matrix_to(0,3), rotation_matrix_to(1,3), rotation_matrix_to(2,3)));
+
+
+	Key key = counter_all_map + 1;
+	graph.add( BetweenFactor<Pose3>( key-1, key, poseFrom.between(poseTo), odometryNoise) );
+	initial.insert( key, poseTo );
+
+	cout<<"============gtsam_pose["<<key<<"]============="<<endl;
+	cout<<poseTo<<endl;
+	cout<<"roll="<<roll<<"pitch="<<pitch<<"yaw="<<yaw<<endl;
+	
+	cout<<"should be Point3(10, -2, 0)) = "<< poseFrom.between(poseTo) <<endl;
+	
+	
+	
+    
+    
+   
+    
+	// ICP Settings
+	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> gicp;
+	gicp.setMaxCorrespondenceDistance(50); // giseop , use a value can cover 2*historyKeyframeSearchNum range in meter 
+	gicp.setMaxCorrespondenceDistance(10.0);
+	gicp.setTransformationEpsilon(0.001);
+	gicp.setMaximumIterations(1000);
+	cout<<"=====1====="<<endl;
+	pcl::PointCloud<pcl::PointXYZI>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<pcl::PointXYZI>());
+	pcl::copyPointCloud(*map_final,  *thisRawCloudKeyFrame);
+	cout<<"=====2====="<<endl;
+	// Align pointclouds
+	gicp.setInputSource( thisRawCloudKeyFrame );
+	cout<<SCclosestHistoryFrameID-1<<endl;
+	gicp.setInputTarget( cloud_for_scan_context[SCclosestHistoryFrameID]);
+	cout<<SCclosestHistoryFrameID-1<<endl;
+	pcl::PointCloud<pcl::PointXYZI>::Ptr unused_result(new pcl::PointCloud<pcl::PointXYZI>());
+	gicp.align(*unused_result);
+
+	cout<<"=====3====="<<endl;
+
+	float loopFitnessScoreThreshold = 0.3; // user parameter but fixed low value is safe. 
+	if (gicp.hasConverged() == false || gicp.getFitnessScore() > loopFitnessScoreThreshold) {
+		std::cout << "[SC loop] ICP fitness test failed (" << gicp.getFitnessScore() << " > " << loopFitnessScoreThreshold << "). Reject this SC loop." << gicp.getFinalTransformation () << std::endl;
+	} else {
+		std::cout << "[SC loop] ICP fitness test passed (" << gicp.getFitnessScore() << " < " << loopFitnessScoreThreshold << "). Add this SC loop." << gicp.getFinalTransformation () <<std::endl;
+	}
+
+    	cout<<"=====4====="<<endl;
+    	store_of_submap.push_back(*map_final);
+    
+	Eigen::Matrix4f Ti_for_submap_end = gicp.getFinalTransformation (); 
+	Eigen::Matrix4f rotation_matrix = Ti_for_submap_end;
+
+	double yaw_of_loop_end = atan2( rotation_matrix(1,0),rotation_matrix(0,0) );
+
+	double x = rotation_matrix(0,3);
+	double y = rotation_matrix(1,3);
+	double z = rotation_matrix(2,3);    
+    
+    	//pcl::copyPointCloud(*unused_result,  *map_final);
+    	//*map_all += *map_final;
+    	
 
 	//17
 	//[-13.0324, -5.68891, 0.677139]';
 	//roll=-0.00222321pitch=0.0277029yaw=0.258455
 
 	//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, 20 / 180.0 * 3.1415926 ), Point3(30, 0, 0));
-	Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -0.258455), Point3(10, -2, 0));
-	graph.add(BetweenFactor<Pose3>(17, 0, delta, odometryNoise));
+	//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -0.258455), Point3(10, -2, 0));
+	
+	cout<<"=====5====="<<endl;
+	Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -yaw_of_loop_end), Point3(x, y, z));
+	graph.add(BetweenFactor<Pose3>( counter_all_map + 1 , 0, delta, odometryNoise));
 
 	GaussNewtonParams parameters;
 	parameters.setVerbosity("ERROR");
@@ -751,6 +825,10 @@ public:
 	Values result = optimizer.optimize();
 	//cout<<"============gtsam_pose_last[16]============="<<endl;
 	//result.print("Final Result:\n");
+
+	cout<<"=====6====="<<endl;
+
+	graph_optimization_done = true;
 
 	map_all.reset(new pcl::PointCloud<pcl::PointXYZ>);
 	
@@ -772,6 +850,7 @@ public:
 		*map_all += *map_final_in_all_map;
 	
 	}
+	
 	
 	sensor_msgs::PointCloud2Ptr msg_second(new sensor_msgs::PointCloud2);
 	pcl::toROSMsg(*map_all, *msg_second);
