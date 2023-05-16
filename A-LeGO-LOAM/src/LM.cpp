@@ -437,7 +437,7 @@ public:
  	
     int SCclosestHistoryFrameID; // giseop 
     bool loop_detected = false;
-    if(  counter % 20 == 0 )
+    if(  counter % 30 == 0 )
     {
     	cout<<"=====================scManager====================="<<endl;
 	pcl::PointCloud<pcl::PointXYZI>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<pcl::PointXYZI>());
@@ -752,6 +752,7 @@ public:
 	initial.insert( key, poseTo );
 
 	cout<<"============gtsam_pose["<<key<<"]============="<<endl;
+	cout<<poseFrom<<endl;
 	cout<<poseTo<<endl;
 	cout<<"roll="<<roll<<",pitch="<<pitch<<",yaw="<<yaw<<endl;
 	
@@ -813,7 +814,7 @@ public:
 	//Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -0.258455), Point3(10, -2, 0));
 	
 
-	Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -yaw_of_loop_end), Point3(x_guess, y_guess, 0));
+	Pose3 delta = Pose3( Rot3::RzRyRx(0, 0, -yaw_of_loop_end), Point3(x_guess+x, y_guess+y, 0));
 	graph.add(BetweenFactor<Pose3>( counter_all_map + 1 , 0, delta, odometryNoise));
 
 	GaussNewtonParams parameters;
