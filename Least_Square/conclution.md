@@ -5,6 +5,16 @@ delta_params = np.linalg.solve( H, -1 * J.T @ r)
 
 delta_params = np.linalg.inv( J.T @ J + lambda_ * np.eye(len(2)) ) @ J.T @ r
 
+
+np.linalg.inv( J.T @ J + lambda_ * np.eye(len(2)) ) @ J.T 
+= np.linalg.inv( J.T @ J + lambda_ * np.eye(len(2)) ) @ J.T @ ( J @ J.T + lambda_ * np.eye(len(2)) ) @ np.linalg.inv( J @ J.T + lambda_ * np.eye(len(2)) )
+= np.linalg.inv( J.T @ J + lambda_ * np.eye(len(2)) ) @ J.T @ ( J @ J.T + lambda_ * np.eye(len(2)) ) @ np.linalg.inv( J @ J.T + lambda_ * np.eye(len(2)) )
+= np.linalg.inv( J.T @ J + lambda_ * np.eye(len(2)) ) @ ( J.T @ J @ J.T + J.T * lambda_ ) @ np.linalg.inv( J @ J.T + lambda_ * np.eye(len(2)) )
+= np.linalg.inv( J.T @ J + lambda_ * np.eye(len(2)) ) @ ( J.T @ J + lambda_ * np.eye(len(2)) ) @ J.T  @ np.linalg.inv( J @ J.T + lambda_ * np.eye(len(2)) )
+= I @ J.T  @ np.linalg.inv( J @ J.T + lambda_ * np.eye(len(2)) )
+= J.T  @ np.linalg.inv( J @ J.T + lambda_ * np.eye(len(2)) )
+
+
 # 2 kalman filter, K
 
 H = -J
