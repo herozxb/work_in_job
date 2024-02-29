@@ -16,7 +16,7 @@ def main():
 	""" Lattice Boltzmann Simulation """
 	
 	# Simulation parameters
-	Nx                     = 400    # resolution x-dir
+	Nx                     = 300    # resolution x-dir
 	Ny                     = 100    # resolution y-dir
 	rho0                   = 100    # average density
 	tau                    = 0.6    # collision timescale
@@ -35,14 +35,22 @@ def main():
 	np.random.seed(42)
 	F += 0.01*np.random.randn(Ny,Nx,NL)
 	X, Y = np.meshgrid(range(Nx), range(Ny))
-	F[:,:,3] += 2 * (1+0.2*np.cos(2*np.pi*X/Nx*4))
+	#F[:,:,3] += 2 * (1+0.2*np.cos(2*np.pi*X/Nx*4))
+	F[:,:,1] += 2 * (1+0.2*np.cos(2*np.pi*Y/Nx*4))
 	rho = np.sum(F,2)
 	for i in idxs:
 		F[:,:,i] *= rho0 / rho
 	
 	# Cylinder boundary
 	X, Y = np.meshgrid(range(Nx), range(Ny))
-	cylinder = (X - Nx/4)**2 + (Y - Ny/2)**2 < (Ny/4)**2
+	
+	cylinder = ((X - Nx/4)**2 + (Y - Ny/2)**2 < (Ny/4)**2) 
+	
+	for x in range(Nx):
+		for y in range(Ny):
+			if y==0 or y==Ny-1 or x==0 or  x==Nx-1 :
+				cylinder[y][x] =True
+		
 	
 	# Prep figure
 	fig = plt.figure(figsize=(4,2), dpi=80)
@@ -107,10 +115,10 @@ def main():
 			#plt.imshow(collision)
 			
 			# show the Velocity
-			#plt.imshow(np.sqrt(ux**2+uy**2))
+			plt.imshow(np.sqrt(ux**2+uy**2))
 			
 			# show the vorticity
-			plt.imshow(vorticity, cmap='bwr')
+			#plt.imshow(vorticity, cmap='bwr')
 			
 			plt.imshow(~cylinder, cmap='gray', alpha=0.3)
 			plt.clim(-.1, .1)

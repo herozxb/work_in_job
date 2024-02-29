@@ -1,17 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
+import time
 
 # Simulation parameters
 rho0                   = 100    # average density
 tau                    = 0.6    # collision timescale
-Nt                     = 1000   # number of timesteps
+Nt                     = 10000   # number of timesteps
 
 # Define dimensions for the lattice
-Nx = 20  # Number of lattice nodes in x-direction
-Ny = 20  # Number of lattice nodes in y-direction
-Nz = 20  # Number of lattice nodes in z-direction
+Nx = 15  # Number of lattice nodes in x-direction
+Ny = 15  # Number of lattice nodes in y-direction
+Nz = 15  # Number of lattice nodes in z-direction
 NL = 19  # Number of lattice velocities
 
 
@@ -82,18 +82,23 @@ def stream(F):
     return F_streamed
 
 
+# Create meshgrid for plotting
+x, y, z = np.meshgrid(range(Nx), range(Ny), range(Nz), indexing='ij')
+
+
 for it in range(Nt):
 	#print(it)
 
 	
+	# Start time
+	start_time = time.time()
 
+	for i, cx, cy, cz in zip(range(NL), cxs, cys, czs):
+		F[:,:,:,i] = np.roll(F[:,:,:,i], cx, axis=1)
+		F[:,:,:,i] = np.roll(F[:,:,:,i], cy, axis=0)
+		F[:,:,:,i] = np.roll(F[:,:,:,i], cz, axis=2)
 
-	#for i, cx, cy, cz in zip(range(NL), cxs, cys, czs):
-	#	F[:,:,:,i] = np.roll(F[:,:,:,i], cx, axis=1)
-	#	F[:,:,:,i] = np.roll(F[:,:,:,i], cy, axis=0)
-	#	F[:,:,:,i] = np.roll(F[:,:,:,i], cz, axis=2)
-
-	F = stream(F)
+	#F = stream(F)
 
 		
 	# Calculate density
@@ -111,15 +116,14 @@ for it in range(Nt):
 	# Update distribution functions F based on relaxation process
 	F += -(1.0 / tau) * (F - Feq)
 
-	
-	# Create meshgrid for plotting
-	x, y, z = np.meshgrid(range(Nx), range(Ny), range(Nz), indexing='ij')
-
-
 	plt.cla()
+	#ax.scatter(x, y, z, c=rho.flatten(), cmap='viridis')
+	ax.scatter(x, y, z, c=rho.flatten(), cmap='viridis', s=10, rasterized=True ) # Elapsed time: 0.02270030975341797 seconds
 	
-	rho = np.sum(F, axis=3)
-	ax.scatter(x, y, z, c=rho.flatten(), cmap='viridis')
+	# End time
+	end_time = time.time()
+	elapsed_time = end_time - start_time
+	print("Elapsed time:", elapsed_time, "seconds")
 	
 	#v = np.sqrt(ux**2+uy**2+uz**2)
 	#ax.scatter(x, y, z, c=v.flatten(), cmap='viridis')
@@ -130,12 +134,12 @@ for it in range(Nt):
 	# Plot velocity vectors
 
 	# Set labels and title
-	ax.set_xlabel('X')
-	ax.set_ylabel('Y')
-	ax.set_zlabel('Z')
-	ax.set_title('Initial Velocity in 3D Volume')
+	#ax.set_xlabel('X')
+	#ax.set_ylabel('Y')
+	#ax.set_zlabel('Z')
+	#ax.set_title('Initial Velocity in 3D Volume')
 	
-	plt.pause(0.001)
+	plt.pause(0.0001)
 
 # Show plot
 plt.show()
